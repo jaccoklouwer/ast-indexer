@@ -19,7 +19,7 @@ Houd commits consistent (Conventional Commits) en laat releases inclusief tags g
 2. Voer kwaliteitschecks uit:
    - `pnpm lint`
    - `pnpm build`
-   - `pnpm test -- --run`
+   - `pnpm test`
 3. Los fouten en waarschuwingen op.
 4. Start commit flow met `pnpm commit`.
 
@@ -73,6 +73,6 @@ Als `pnpm commit` of `pnpm release` faalt:
 - [ ] Werkboom is schoon genoeg voor de bedoelde commit.
 - [ ] `pnpm lint` is groen.
 - [ ] `pnpm build` is groen.
-- [ ] `pnpm test -- --run` is groen.
+- [ ] `pnpm test` is groen.
 - [ ] Commit gemaakt met `pnpm commit`.
 - [ ] Release en push gedaan met `pnpm release` (indien van toepassing).

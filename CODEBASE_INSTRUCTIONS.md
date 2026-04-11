@@ -426,9 +426,10 @@ describe('RepositoryIndexer', () => {
 
 **Test Commands:**
 
-- `npm test` - Run all tests
-- `npm run test:ui` - Interactive UI
-- `npm run test:coverage` - Coverage report
+- `pnpm test` - Run all tests once
+- `pnpm run test:watch` - Watch mode voor TDD
+- `pnpm run test:ui` - Interactive UI
+- `pnpm run test:coverage` - Coverage report
 
 ---
 
@@ -438,29 +439,29 @@ describe('RepositoryIndexer', () => {
 
 ```bash
 # Install dependencies
-npm install
+pnpm install
 
 # Development mode (met tsx hot-reload)
-npm run dev
+pnpm run dev
 
 # Build TypeScript
-npm run build
+pnpm run build
 
 # Watch mode
-npm run watch
+pnpm run watch
 ```
 
 ### Testing tijdens ontwikkeling
 
 ```bash
 # Watch mode voor TDD
-npm test -- --watch
+pnpm run test:watch
 
 # Test specifieke file
-npm test -- parser.test.ts
+pnpm test -- parser.test.ts
 
 # Coverage voor specifieke file
-npm run test:coverage -- --coverage.include=src/parser.ts
+pnpm run test:coverage -- --coverage.include=src/parser.ts
 ```
 
 ### MCP Server Testing

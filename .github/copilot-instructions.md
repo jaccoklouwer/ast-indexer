@@ -76,7 +76,7 @@ All data structures validated with Zod. When adding fields:
 - Tests create temporary directories with `fs.mkdtemp()` + cleanup in `afterAll()`
 - Git repo tests use `simple-git` to init, commit, and configure test repos
 - Test structure: write temp files → parse/index → assert extracted data
-- Run: `pnpm test` (watch), `pnpm run test:ui` (UI), `pnpm run test:coverage`
+- Run: `pnpm test` (one-shot), `pnpm run test:watch` (watch), `pnpm run test:ui` (UI), `pnpm run test:coverage`
 
 ### Documentation Language
 

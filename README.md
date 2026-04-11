@@ -38,8 +38,11 @@ pnpm run dev
 ## Testing
 
 ```bash
-# Run tests
+# Run tests once
 pnpm test
+
+# Watch mode
+pnpm run test:watch
 
 # Run tests met UI
 pnpm run test:ui
