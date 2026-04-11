@@ -1,5 +1,5 @@
 {
-  "name": "@jaccoklouwer/ast-indexer",
+  "name": "@klouwer94/ast-indexer",
   "version": "0.1.1",
   "description": "MCP Server for indexing Git repositories using AST parsing",
   "type": "module",

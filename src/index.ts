@@ -18,7 +18,7 @@ import {
 // Gedeelde indexer singleton — alle clients delen dezelfde in-memory cache
 const indexer = new RepositoryIndexer();
 const CLI_NAME = 'ast-indexer';
-const PACKAGE_NAME = '@jaccoklouwer/ast-indexer';
+const PACKAGE_NAME = '@klouwer94/ast-indexer';
 const SERVER_VERSION = '0.1.0';
 const DEFAULT_HTTP_PORT = 3847;
 

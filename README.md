@@ -21,10 +21,10 @@ Een Model Context Protocol (MCP) server voor het indexeren van Git repositories 
 
 ```bash
 # Eenmalig gebruiken via npx
-npx @jaccoklouwer/ast-indexer --help
+npx @klouwer94/ast-indexer --help
 
 # Of globaal installeren
-npm install -g @jaccoklouwer/ast-indexer
+npm install -g @klouwer94/ast-indexer
 ast-indexer --help
 ```
 
