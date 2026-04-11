@@ -1,0 +1,10 @@
+# Changelog
+
+All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
+
+### 0.1.1 (2026-04-11)
+
+
+### Bug Fixes
+
+* **testing:** restore portable vitest runs ([8555479](https://github.com/jaccoklouwer/ast-indexer/commit/8555479bac8c4c74b226f2c09eebc1ca1f22b126))

@@ -1,6 +1,6 @@
 {
   "name": "@jaccoklouwer/ast-indexer",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "MCP Server for indexing Git repositories using AST parsing",
   "type": "module",
   "main": "./dist/index.js",
