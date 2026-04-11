@@ -1,33 +1,62 @@
 {
-  "name": "ast-indexer",
-  "version": "1.0.0",
+  "name": "@jaccoklouwer/ast-indexer",
+  "version": "0.1.0",
   "description": "MCP Server for indexing Git repositories using AST parsing",
   "type": "module",
-  "main": "dist/index.js",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "bin": {
     "ast-indexer": "dist/index.js"
   },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jaccoklouwer/ast-indexer.git"
+  },
+  "homepage": "https://github.com/jaccoklouwer/ast-indexer#readme",
+  "bugs": {
+    "url": "https://github.com/jaccoklouwer/ast-indexer/issues"
+  },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
-    "build": "tsc",
+    "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
+    "build": "pnpm run clean && tsc",
     "watch": "tsc --watch",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
     "dev": "tsx src/index.ts",
+    "prepack": "pnpm build",
+    "pack:dry-run": "npm pack --dry-run",
+    "publish:npm:dry-run": "npm publish --dry-run",
+    "publish:npm": "npm publish",
+    "publish:check": "pnpm lint && pnpm build && pnpm test && pnpm run pack:dry-run",
     "prepare": "npm run build",
     "lint": "eslint . --ext .ts,.tsx,.js,.jsx",
     "lint:fix": "eslint . --ext .ts,.tsx,.js,.jsx --fix",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "commit": "git add . && pnpx git-cz",
-    "release": "pnpx standard-version --infile CHANGELOG.md && pnpm push",
+    "release": "pnpx standard-version --infile CHANGELOG.md",
     "push": "git push --follow-tags origin"
   },
   "keywords": [
     "AST",
     "Indexer",
+    "CLI",
     "MCP",
+    "MCP Server",
     "Git",
     "TypeScript"
   ],

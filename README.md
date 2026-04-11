@@ -20,6 +20,19 @@ Een Model Context Protocol (MCP) server voor het indexeren van Git repositories 
 ## Installatie
 
 ```bash
+# Eenmalig gebruiken via npx
+npx @jaccoklouwer/ast-indexer --help
+
+# Of globaal installeren
+npm install -g @jaccoklouwer/ast-indexer
+ast-indexer --help
+```
+
+Vereist Node.js 20 of nieuwer.
+
+## Lokale ontwikkeling
+
+```bash
 pnpm install
 ```
 
@@ -28,6 +41,35 @@ pnpm install
 ```bash
 pnpm run build
 ```
+
+## Publish Check
+
+```bash
+pnpm run publish:check
+```
+
+Deze check draait lint, build, tests en een `npm pack --dry-run`, zodat je de uiteindelijke npm-tarball kunt inspecteren voor publish.
+
+## Release Naar npm
+
+```bash
+# Eenmalig op deze machine
+npm adduser --registry https://registry.npmjs.org/
+
+# Controleer de package inhoud en kwaliteit
+pnpm run publish:check
+
+# Maak release commit + tag lokaal
+pnpm release
+
+# Publiceer naar npm
+pnpm run publish:npm
+
+# Push daarna commit en tag naar GitHub
+pnpm push
+```
+
+Voor een extra veilige laatste controle kun je eerst `pnpm run publish:npm:dry-run` draaien.
 
 ## Development
 

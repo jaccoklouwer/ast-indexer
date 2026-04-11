@@ -125,3 +125,6 @@ Standaard commando's:
 
 - `pnpm commit`
 - `pnpm release`
+- `pnpm run publish:check`
+- `pnpm run publish:npm`
+- `pnpm push`

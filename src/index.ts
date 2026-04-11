@@ -17,6 +17,10 @@ import {
 
 // Gedeelde indexer singleton — alle clients delen dezelfde in-memory cache
 const indexer = new RepositoryIndexer();
+const CLI_NAME = 'ast-indexer';
+const PACKAGE_NAME = '@jaccoklouwer/ast-indexer';
+const SERVER_VERSION = '0.1.0';
+const DEFAULT_HTTP_PORT = 3847;
 
 /**
  * Toon hulp/usage voor de MCP server CLI.
@@ -27,13 +31,14 @@ function printHelp(): void {
       'AST-Indexer MCP Server — hulp/usage',
       '',
       'Gebruik:',
-      '  npx -y C:/Users/JKLOUWE94/Documents/codaisseur/AST-Indexer [opties]',
+      `  npx ${PACKAGE_NAME} [opties]`,
+      `  ${CLI_NAME} [opties]`,
       '',
       'Opties:',
       '  -h, --help                Toon deze hulptekst en sluit af',
       '  --http                    Start in HTTP modus (meerdere clients)',
-      '  --port <n>                Poort voor HTTP modus (standaard: 3000)',
-      '  --concurrency <n>        Overschrijf aantal parse workers (env: AST_INDEXER_CONCURRENCY)',
+      `  --port <n>                Poort voor HTTP modus (standaard: ${DEFAULT_HTTP_PORT})`,
+      '  --concurrency <n>         Overschrijf aantal parse workers (env: AST_INDEXER_CONCURRENCY)',
       '',
       'Omgevingsvariabelen:',
       '  AST_INDEXER_CONCURRENCY  Aantal workers tijdens indexeren (standaard: min(16, cpu cores))',
@@ -77,7 +82,7 @@ const GetStatisticsArgsSchema = z.object({
 function createMcpServer(): McpServer {
   const server = new McpServer({
     name: 'ast-indexer',
-    version: '1.0.0',
+    version: SERVER_VERSION,
   });
 
   server.registerTool(
@@ -326,7 +331,7 @@ function resolveHttpPort(args: string[]): number {
       ? args[portArgIdx + 1]
       : (args.find((a) => a.startsWith('--port='))?.split('=')[1] ??
         process.env.AST_INDEXER_HTTP_PORT);
-  return portStr ? Number.parseInt(portStr, 10) : 3847;
+  return portStr ? Number.parseInt(portStr, 10) : DEFAULT_HTTP_PORT;
 }
 
 /**

@@ -7,7 +7,9 @@ applyTo: '**'
 Gebruik in deze repository standaard het package-script workflowpad:
 
 - Committen: `pnpm commit`
-- Releasen en pushen: `pnpm release`
+- Release voorbereiden: `pnpm release`
+- Naar npm publiceren: `pnpm run publish:npm`
+- Git tags en commits pushen: `pnpm push`
 
 ## Doel
 
@@ -42,26 +44,36 @@ Regels:
 - Sluit de subjectregel af zonder punt.
 - Voeg bij breaking changes `!` toe en een `BREAKING CHANGE:` footer.
 
-## Releasen En Pushen
+## Releasen En Publiceren
 
-Gebruik `pnpm release` voor version bump, changelog, release commit, tag en push.
+Gebruik voor een npm release deze volgorde:
 
-Verwacht gedrag:
+1. `pnpm run publish:check`
+2. `pnpm release`
+3. `pnpm run publish:npm`
+4. `pnpm push`
 
-1. Bepaalt nieuwe versie op basis van Conventional Commits.
-2. Maakt of update changelog.
-3. Maakt release commit en git tag.
-4. Voert push uit met tags naar origin.
+Verwacht gedrag per stap:
+
+1. `pnpm run publish:check` valideert lint, build, tests en pack-output.
+2. `pnpm release` bepaalt nieuwe versie op basis van Conventional Commits en maakt changelog, release commit en git tag lokaal.
+3. `pnpm run publish:npm` publiceert de huidige versie naar npm.
+4. `pnpm push` pusht release commit en tags naar origin.
+
+Voor de eerste npm publish op een machine moet je ingelogd zijn op npmjs:
+
+- `npm adduser --registry https://registry.npmjs.org/`
 
 ## Wat Niet Doen
 
 - Niet direct `git commit` gebruiken als `pnpm commit` beschikbaar is.
-- Niet handmatig taggen en pushen als `pnpm release` dit al afhandelt.
-- Niet releasen met falende lint/build/test checks.
+- Niet `pnpm run publish:npm` draaien zonder eerst `pnpm run publish:check` te draaien.
+- Niet `pnpm push` overslaan na een succesvolle npm publish.
+- Niet releasen of publishen met falende lint/build/test checks.
 
 ## Foutafhandeling
 
-Als `pnpm commit` of `pnpm release` faalt:
+Als `pnpm commit`, `pnpm release`, `pnpm run publish:npm` of `pnpm push` faalt:
 
 1. Lees de foutmelding volledig.
 2. Herstel eerst de onderliggende oorzaak (tests, lint, build, of git state).
@@ -74,5 +86,8 @@ Als `pnpm commit` of `pnpm release` faalt:
 - [ ] `pnpm lint` is groen.
 - [ ] `pnpm build` is groen.
 - [ ] `pnpm test` is groen.
+- [ ] `pnpm run publish:check` is groen.
 - [ ] Commit gemaakt met `pnpm commit`.
-- [ ] Release en push gedaan met `pnpm release` (indien van toepassing).
+- [ ] Release voorbereid met `pnpm release`.
+- [ ] npm publish gedaan met `pnpm run publish:npm`.
+- [ ] Git push gedaan met `pnpm push`.
