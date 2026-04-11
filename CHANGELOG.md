@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.1.2](https://github.com/jaccoklouwer/ast-indexer/compare/v0.1.1...v0.1.2) (2026-04-11)
+
+
+### Features
+
+* 🎸 succesvolle npm publish ([649dbcf](https://github.com/jaccoklouwer/ast-indexer/commit/649dbcf1fb3d19050835d2dabfe172ef737e2ea6))
+
 ### 0.1.1 (2026-04-11)
 
 
