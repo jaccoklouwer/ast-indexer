@@ -1,9 +1,114 @@
 import * as fs from 'fs/promises';
 // import * as path from 'path';
 import iconv from 'iconv-lite';
-import Parser from 'tree-sitter';
-import CSharp from 'tree-sitter-c-sharp';
 import { ClassInfo, FileIndex, FunctionInfo, ImportInfo, VariableInfo } from './schemas.js';
+
+interface TreeSitterPoint {
+  row: number;
+  column: number;
+}
+
+interface TreeSitterSyntaxNode {
+  type: string;
+  startIndex: number;
+  endIndex: number;
+  startPosition: TreeSitterPoint;
+  endPosition: TreeSitterPoint;
+  parent: TreeSitterSyntaxNode | null;
+  children: TreeSitterSyntaxNode[];
+  namedChildren: TreeSitterSyntaxNode[];
+  childCount: number;
+  child(index: number): TreeSitterSyntaxNode | null;
+  childForFieldName(fieldName: string): TreeSitterSyntaxNode | null;
+}
+
+interface TreeSitterTree {
+  rootNode: TreeSitterSyntaxNode;
+}
+
+interface TreeSitterLanguage {
+  readonly name?: string;
+}
+
+interface TreeSitterParserInstance {
+  setLanguage(language: TreeSitterLanguage): void;
+  parse(input: string): TreeSitterTree;
+}
+
+interface TreeSitterParserConstructor {
+  new (): TreeSitterParserInstance;
+}
+
+function isParserConstructor(value: unknown): value is TreeSitterParserConstructor {
+  return typeof value === 'function';
+}
+
+function isLanguage(value: unknown): value is TreeSitterLanguage {
+  return typeof value === 'object' && value !== null;
+}
+
+function resolveDefaultExport(moduleValue: unknown): unknown {
+  if (typeof moduleValue === 'object' && moduleValue !== null && 'default' in moduleValue) {
+    return (moduleValue as { default: unknown }).default;
+  }
+
+  return moduleValue;
+}
+
+async function loadTreeSitter(): Promise<{
+  ParserCtor: TreeSitterParserConstructor;
+  language: TreeSitterLanguage;
+} | null> {
+  try {
+    const [parserModule, languageModule] = await Promise.all([
+      import('tree-sitter'),
+      import('tree-sitter-c-sharp'),
+    ]);
+
+    const ParserCtor = resolveDefaultExport(parserModule);
+    const language = resolveDefaultExport(languageModule);
+
+    if (!isParserConstructor(ParserCtor) || !isLanguage(language)) {
+      return null;
+    }
+
+    return {
+      ParserCtor,
+      language,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function getLineNumber(content: string, index: number): number {
+  return content.slice(0, index).split('\n').length;
+}
+
+function findBlockRange(
+  content: string,
+  startIndex: number,
+): { start: number; end: number } | null {
+  const openBraceIndex = content.indexOf('{', startIndex);
+  if (openBraceIndex === -1) {
+    return null;
+  }
+
+  let depth = 0;
+  for (let index = openBraceIndex; index < content.length; index++) {
+    const char = content[index];
+    if (char === '{') {
+      depth += 1;
+    } else if (char === '}') {
+      depth -= 1;
+      if (depth === 0) {
+        return { start: openBraceIndex, end: index };
+      }
+    }
+  }
+
+  return null;
+}
 
 /**
  * Parse een C# bestand met Tree-sitter
@@ -33,16 +138,22 @@ export async function parseCSharpFile(filePath: string): Promise<FileIndex> {
   }
   // const relativePath = path.basename(filePath);
 
-  const parser = new Parser();
-  parser.setLanguage(CSharp);
-  let tree: Parser.Tree;
+  const treeSitter = await loadTreeSitter();
+  if (!treeSitter) {
+    return fallbackParseCSharpContent(content, filePath);
+  }
+
+  const parser = new treeSitter.ParserCtor();
+  parser.setLanguage(treeSitter.language);
+  let tree: TreeSitterTree;
+  let parsedContent = content;
   try {
     tree = parser.parse(content);
   } catch {
     // Fallback: probeer alternatieve encodings indien parse faalt
     try {
-      const alt = iconv.decode(raw, 'latin1');
-      tree = parser.parse(alt);
+      parsedContent = iconv.decode(raw, 'latin1');
+      tree = parser.parse(parsedContent);
     } catch {
       // Als Tree-sitter faalt: simpele regex-gebaseerde fallback extractie
       return fallbackParseCSharpContent(content, filePath);
@@ -56,23 +167,23 @@ export async function parseCSharpFile(filePath: string): Promise<FileIndex> {
   const exports: string[] = [];
 
   // Helper functie om node text te krijgen
-  const getNodeText = (node: Parser.SyntaxNode): string => {
-    return content.substring(node.startIndex, node.endIndex);
+  const getNodeText = (node: TreeSitterSyntaxNode): string => {
+    return parsedContent.substring(node.startIndex, node.endIndex);
   };
 
   // Recursief door de AST lopen
-  const traverse = (node: Parser.SyntaxNode, namespace?: string) => {
+  const traverse = (node: TreeSitterSyntaxNode, namespace?: string) => {
     // Extract using directives (imports)
     if (node.type === 'using_directive') {
       // Try several possible field names / structures to extract the name
       let nameNode = node.childForFieldName('name');
       if (!nameNode) {
         nameNode = node.namedChildren.find(
-          (c: Parser.SyntaxNode) =>
+          (c: TreeSitterSyntaxNode) =>
             c.type === 'qualified_name' ||
             c.type === 'identifier' ||
             c.type === 'namespace_or_type_name',
-        ) as Parser.SyntaxNode | null;
+        ) as TreeSitterSyntaxNode | null;
       }
       if (nameNode) {
         imports.push({
@@ -110,7 +221,7 @@ export async function parseCSharpFile(filePath: string): Promise<FileIndex> {
         // Check modifiers
         let isPublic = false;
         let isAbstract = false;
-        const modifiers = node.children.filter((c: Parser.SyntaxNode) => c.type === 'modifier');
+        const modifiers = node.children.filter((c: TreeSitterSyntaxNode) => c.type === 'modifier');
         for (const mod of modifiers) {
           const modText = getNodeText(mod);
           if (modText === 'public') isPublic = true;
@@ -121,9 +232,9 @@ export async function parseCSharpFile(filePath: string): Promise<FileIndex> {
         // Zoek naar base list node (verschillende varianten in grammar)
         const basesNode =
           node.namedChildren.find(
-            (c: Parser.SyntaxNode) =>
+            (c: TreeSitterSyntaxNode) =>
               c.type === 'base_list' || c.type === 'class_base' || c.type === 'interface_base',
-          ) || node.children.find((c: Parser.SyntaxNode) => c.type === 'base_list');
+          ) || node.children.find((c: TreeSitterSyntaxNode) => c.type === 'base_list');
         let extendsClass: string | undefined;
         if (basesNode) {
           const baseTypes: string[] = [];
@@ -208,7 +319,7 @@ export async function parseCSharpFile(filePath: string): Promise<FileIndex> {
         let isAsync = false;
 
         // Check modifiers
-        const modifiers = node.children.filter((c: Parser.SyntaxNode) => c.type === 'modifier');
+        const modifiers = node.children.filter((c: TreeSitterSyntaxNode) => c.type === 'modifier');
         for (const mod of modifiers) {
           const modText = getNodeText(mod);
           if (modText === 'public') isPublic = true;
@@ -262,7 +373,7 @@ export async function parseCSharpFile(filePath: string): Promise<FileIndex> {
         const nameNode = declarator.childForFieldName('name');
         if (nameNode) {
           const isPublic = node.children.some(
-            (c: Parser.SyntaxNode) => c.type === 'modifier' && getNodeText(c) === 'public',
+            (c: TreeSitterSyntaxNode) => c.type === 'modifier' && getNodeText(c) === 'public',
           );
 
           variables.push({
@@ -309,12 +420,34 @@ function fallbackParseCSharpContent(content: string, filePath: string): FileInde
   const variables: VariableInfo[] = [];
   const exports: string[] = [];
 
+  const namespaceMatches = [...content.matchAll(/\bnamespace\s+([A-Za-z_][\w.]*)/g)].map(
+    (match) => ({
+      name: match[1],
+      index: match.index ?? 0,
+    }),
+  );
+
+  const getNamespaceForIndex = (index: number): string | undefined => {
+    let resolvedNamespace: string | undefined;
+
+    for (const namespaceMatch of namespaceMatches) {
+      if (namespaceMatch.index <= index) {
+        resolvedNamespace = namespaceMatch.name;
+      } else {
+        break;
+      }
+    }
+
+    return resolvedNamespace;
+  };
+
   // Using directives
-  const usingRegex = /^\s*using\s+([A-Za-z0-9_.]+)\s*;\s*$/gm;
+  const usingRegex =
+    /^\s*using\s+(?:static\s+)?(?:[A-Za-z_][\w]*\s*=\s*)?([A-Za-z0-9_.]+)\s*;\s*$/gm;
   for (const match of content.matchAll(usingRegex)) {
     const name = match[1];
     const startIdx = match.index ?? 0;
-    const line = content.slice(0, startIdx).split('\n').length;
+    const line = getLineNumber(content, startIdx);
     imports.push({
       source: name,
       imported: [],
@@ -327,25 +460,79 @@ function fallbackParseCSharpContent(content: string, filePath: string): FileInde
 
   // Classes / interfaces
   const classRegex =
-    /(public|internal|protected|private)?\s*(abstract\s+)?\s*(class|interface)\s+([A-Za-z_][A-Za-z0-9_.]*)/gm;
+    /(public|internal|protected|private)?\s*(abstract\s+)?\s*(class|interface)\s+([A-Za-z_][A-Za-z0-9_.]*)\s*(?::\s*([^\n{]+))?/gm;
   for (const match of content.matchAll(classRegex)) {
     const isPublic = match[1] === 'public';
     const isAbstract = Boolean(match[2]);
     const isInterface = match[3] === 'interface';
     const className = match[4];
     const startIdx = match.index ?? 0;
-    const startLine = content.slice(0, startIdx).split('\n').length;
+    const startLine = getLineNumber(content, startIdx);
+    const namespace = getNamespaceForIndex(startIdx);
+    const baseTypes = (match[5] ?? '')
+      .split(',')
+      .map((part) => part.trim())
+      .filter(Boolean);
+    const blockRange = findBlockRange(content, startIdx);
+    const methods: string[] = [];
+    const properties: string[] = [];
+
+    if (blockRange) {
+      const body = content.slice(blockRange.start + 1, blockRange.end);
+      const methodRegex =
+        /(public|internal|protected|private)\s+(?:static\s+)?(?:override\s+)?(?:virtual\s+)?(?:async\s+)?([A-Za-z_][^\s(]*)\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(([^)]*)\)/gm;
+      for (const methodMatch of body.matchAll(methodRegex)) {
+        const methodName = methodMatch[3];
+        const params = methodMatch[4]
+          .split(',')
+          .map((part) => part.trim())
+          .filter(Boolean)
+          .map((part) => {
+            const paramMatch = part.match(/([A-Za-z_][A-Za-z0-9_]*)\s*(?:=|$)/);
+            return paramMatch ? paramMatch[1] : part;
+          });
+        const methodStartIndex = blockRange.start + 1 + (methodMatch.index ?? 0);
+
+        methods.push(methodName);
+        functions.push({
+          name: methodName,
+          type: /\basync\b/.test(methodMatch[0]) ? 'async' : 'method',
+          params,
+          startLine: getLineNumber(content, methodStartIndex),
+          endLine: getLineNumber(content, methodStartIndex),
+          file: filePath,
+          returnType: methodMatch[2].trim(),
+          isPublic: methodMatch[1] === 'public',
+          isStatic: /\bstatic\b/.test(methodMatch[0]),
+          isAsync: /\basync\b/.test(methodMatch[0]),
+        });
+      }
+
+      const propertyRegex =
+        /(public|internal|protected|private)\s+[A-Za-z_][^\s{]*\s+([A-Za-z_][A-Za-z0-9_]*)\s*\{\s*(?:get|set)/gm;
+      for (const propertyMatch of body.matchAll(propertyRegex)) {
+        properties.push(propertyMatch[2]);
+      }
+    }
+
+    const extendsClass = !isInterface && baseTypes.length > 0 ? baseTypes[0] : undefined;
+    const implementsList =
+      isInterface || baseTypes.length > 1
+        ? isInterface
+          ? baseTypes
+          : baseTypes.slice(1)
+        : undefined;
 
     classes.push({
       name: className,
-      methods: [],
-      properties: [],
+      methods,
+      properties,
       startLine,
-      endLine: startLine,
+      endLine: blockRange ? getLineNumber(content, blockRange.end) : startLine,
       file: filePath,
-      extends: undefined,
-      implements: undefined,
-      namespace: undefined,
+      extends: extendsClass,
+      implements: implementsList,
+      namespace,
       isPublic,
       isAbstract,
       isInterface,
@@ -353,38 +540,10 @@ function fallbackParseCSharpContent(content: string, filePath: string): FileInde
     if (isPublic) exports.push(className);
   }
 
-  // Methoden (best-effort): access modifier + return type + name + params
-  const methodRegex =
-    /(public|internal|protected|private)\s+(?:static\s+)?(?:async\s+)?([A-Za-z_][A-Za-z0-9_<>,.]*)(?:\[\])*\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(([^)]*)\)/gm;
-  for (const match of content.matchAll(methodRegex)) {
-    const isPublic = match[1] === 'public';
-    const returnType = match[2].trim();
-    const methodName = match[3];
-    const paramsRaw = match[4];
-    const params = paramsRaw
-      .split(',')
-      .map((p) => p.trim())
-      .filter(Boolean)
-      .map((p) => {
-        const m = p.match(/([A-Za-z_][A-Za-z0-9_]*)\s*(?:=|$)/);
-        return m ? m[1] : p;
-      });
-    const startIdx = match.index ?? 0;
-    const startLine = content.slice(0, startIdx).split('\n').length;
-
-    functions.push({
-      name: methodName,
-      type: 'method',
-      params,
-      startLine,
-      endLine: startLine,
-      file: filePath,
-      returnType,
-      isPublic,
-      isStatic: /\bstatic\b/.test(match[0]),
-      isAsync: /\basync\b/.test(match[0]),
-    });
-    if (isPublic) exports.push(methodName);
+  for (const func of functions) {
+    if (func.isPublic) {
+      exports.push(func.name);
+    }
   }
 
   return {
