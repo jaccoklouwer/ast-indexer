@@ -126,5 +126,10 @@ Standaard commando's:
 - `pnpm commit`
 - `pnpm release`
 - `pnpm run publish:check`
-- `pnpm run publish:npm`
 - `pnpm push`
+
+Standaard releasepad:
+
+- lokaal: `pnpm run publish:check`, `pnpm release`, `pnpm push`
+- daarna: GitHub Actions `publish.yml` voor npm publish na environment approval
+- alleen als noodpad: `pnpm run publish:npm`

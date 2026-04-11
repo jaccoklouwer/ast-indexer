@@ -5,6 +5,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
 import * as http from 'node:http';
+import { createRequire } from 'node:module';
 import { z } from 'zod';
 import { RepositoryIndexer } from './indexer.js';
 import {
@@ -17,9 +18,11 @@ import {
 
 // Gedeelde indexer singleton — alle clients delen dezelfde in-memory cache
 const indexer = new RepositoryIndexer();
+const require = createRequire(import.meta.url);
+const packageMetadata = require('../package.json') as { name?: string; version?: string };
 const CLI_NAME = 'ast-indexer';
-const PACKAGE_NAME = '@klouwer94/ast-indexer';
-const SERVER_VERSION = '0.1.0';
+const PACKAGE_NAME = packageMetadata.name ?? '@klouwer94/ast-indexer';
+const SERVER_VERSION = packageMetadata.version ?? '0.0.0';
 const DEFAULT_HTTP_PORT = 3847;
 
 /**

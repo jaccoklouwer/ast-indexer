@@ -15,6 +15,12 @@ export default [
   },
   {
     files: ['**/*.ts', '**/*.tsx'],
+    languageOptions: {
+      globals: {
+        console: 'readonly',
+        process: 'readonly',
+      },
+    },
     rules: {
       'no-unused-vars': 'off',
       '@typescript-eslint/no-unused-vars': [

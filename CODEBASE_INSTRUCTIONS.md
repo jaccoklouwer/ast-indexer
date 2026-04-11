@@ -903,5 +903,10 @@ Kerncommando's:
 - `pnpm commit`
 - `pnpm release`
 - `pnpm run publish:check`
-- `pnpm run publish:npm`
 - `pnpm push`
+
+Standaard releasepad:
+
+- lokaal: `pnpm run publish:check`, `pnpm release`, `pnpm push`
+- daarna: GitHub Actions `publish.yml` publiceert naar npm na environment approval
+- alleen als noodpad: `pnpm run publish:npm`

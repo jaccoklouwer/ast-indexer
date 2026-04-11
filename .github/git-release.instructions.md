@@ -8,8 +8,9 @@ Gebruik in deze repository standaard het package-script workflowpad:
 
 - Committen: `pnpm commit`
 - Release voorbereiden: `pnpm release`
-- Naar npm publiceren: `pnpm run publish:npm`
 - Git tags en commits pushen: `pnpm push`
+- Geautomatiseerd publishen: GitHub Actions `publish.yml`
+- Handmatig noodpad: `pnpm run publish:npm`
 
 ## Doel
 
@@ -50,25 +51,26 @@ Gebruik voor een npm release deze volgorde:
 
 1. `pnpm run publish:check`
 2. `pnpm release`
-3. `pnpm run publish:npm`
-4. `pnpm push`
+3. `pnpm push`
+4. Keur de `npm-publish` environment goed in GitHub Actions
 
 Verwacht gedrag per stap:
 
 1. `pnpm run publish:check` valideert lint, build, tests en pack-output.
 2. `pnpm release` bepaalt nieuwe versie op basis van Conventional Commits en maakt changelog, release commit en git tag lokaal.
-3. `pnpm run publish:npm` publiceert de huidige versie naar npm.
-4. `pnpm push` pusht release commit en tags naar origin.
+3. `pnpm push` pusht release commit en tags naar origin en triggert de publish-workflow op de nieuwe `v*` tag.
+4. GitHub Actions publiceert naar npm via Trusted Publishing nadat de environment is goedgekeurd.
 
-Voor de eerste npm publish op een machine moet je ingelogd zijn op npmjs:
+Voor de CI/CD publishflow moet je eenmalig inrichten:
 
-- `npm adduser --registry https://registry.npmjs.org/`
+- npm Trusted Publishing voor `@klouwer94/ast-indexer`
+- GitHub Environment `npm-publish` met reviewers
 
 ## Wat Niet Doen
 
 - Niet direct `git commit` gebruiken als `pnpm commit` beschikbaar is.
-- Niet `pnpm run publish:npm` draaien zonder eerst `pnpm run publish:check` te draaien.
-- Niet `pnpm push` overslaan na een succesvolle npm publish.
+- Niet `pnpm push` overslaan na `pnpm release`; zonder push start de publish-workflow niet.
+- Niet een `v*` tag vanaf een zijbranch pushen; alleen tags op `main` mogen publishen.
 - Niet releasen of publishen met falende lint/build/test checks.
 
 ## Foutafhandeling
@@ -89,5 +91,7 @@ Als `pnpm commit`, `pnpm release`, `pnpm run publish:npm` of `pnpm push` faalt:
 - [ ] `pnpm run publish:check` is groen.
 - [ ] Commit gemaakt met `pnpm commit`.
 - [ ] Release voorbereid met `pnpm release`.
-- [ ] npm publish gedaan met `pnpm run publish:npm`.
 - [ ] Git push gedaan met `pnpm push`.
+- [ ] `publish.yml` gestart op de release-tag.
+- [ ] `npm-publish` environment goedgekeurd.
+- [ ] npm publish geslaagd via GitHub Actions, of handmatig noodpad gebruikt.

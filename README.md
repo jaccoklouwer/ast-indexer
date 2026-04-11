@@ -53,23 +53,31 @@ Deze check draait lint, build, tests en een `npm pack --dry-run`, zodat je de ui
 ## Release Naar npm
 
 ```bash
-# Eenmalig op deze machine
-npm adduser --registry https://registry.npmjs.org/
-
 # Controleer de package inhoud en kwaliteit
 pnpm run publish:check
 
 # Maak release commit + tag lokaal
 pnpm release
 
-# Publiceer naar npm
-pnpm run publish:npm
-
 # Push daarna commit en tag naar GitHub
 pnpm push
 ```
 
-Voor een extra veilige laatste controle kun je eerst `pnpm run publish:npm:dry-run` draaien.
+Standaard publiceert GitHub Actions daarna naar npm zodra de tag-workflow start en de `npm-publish` environment is goedgekeurd.
+
+Configureer daarvoor eenmalig:
+
+- npm Trusted Publishing voor deze repository/package
+- een GitHub Environment met naam `npm-publish` en verplichte reviewers
+
+Gebruik `pnpm run publish:npm` alleen nog als handmatig noodpad. Voor een extra veilige laatste controle kun je eerst `pnpm run publish:npm:dry-run` draaien.
+
+## CI/CD
+
+De repository gebruikt twee GitHub Actions workflows:
+
+- `ci.yml`: draait lint, build, tests en `npm pack --dry-run` op pull requests en pushes naar `main`
+- `publish.yml`: draait op `v*` tags, valideert de release opnieuw en publiceert daarna naar npm na environment approval
 
 ## Development
 

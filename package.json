@@ -3,6 +3,7 @@
   "version": "0.1.2",
   "description": "MCP Server for indexing Git repositories using AST parsing",
   "type": "module",
+  "packageManager": "pnpm@10.32.1",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
@@ -47,8 +48,8 @@
     "lint:fix": "eslint . --ext .ts,.tsx,.js,.jsx --fix",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
-    "commit": "git add . && pnpx git-cz",
-    "release": "pnpx standard-version --infile CHANGELOG.md",
+    "commit": "git add . && git-cz",
+    "release": "standard-version --infile CHANGELOG.md",
     "push": "git push --follow-tags origin"
   },
   "keywords": [
@@ -82,7 +83,9 @@
     "eslint": "^10.2.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.5",
+    "git-cz": "^4.9.0",
     "prettier": "^3.8.2",
+    "standard-version": "^9.5.0",
     "tsx": "^4.21.0",
     "typescript-eslint": "^8.58.1",
     "vite": "^8.0.8",
