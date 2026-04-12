@@ -1,4 +1,4 @@
-import { RepositoryIndexer } from '../src/indexer.js';
+import { RepositoryIndexer } from './indexer.js';
 
 async function main() {
   const repoPath = process.argv[2];

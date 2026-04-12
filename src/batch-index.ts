@@ -1,4 +1,4 @@
-import { RepositoryIndexer } from '../src/indexer.js';
+import { RepositoryIndexer } from './indexer.js';
 
 function printHelp(): void {
   console.log(
