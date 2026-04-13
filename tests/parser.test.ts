@@ -28,6 +28,8 @@ describe('Parser', () => {
     it('should return true for TypeScript files', () => {
       expect(shouldParseFile('test.ts')).toBe(true);
       expect(shouldParseFile('test.tsx')).toBe(true);
+      expect(shouldParseFile('test.mts')).toBe(true);
+      expect(shouldParseFile('test.cts')).toBe(true);
     });
 
     it('should return false for other file types', () => {
@@ -185,6 +187,36 @@ describe('Parser', () => {
       expect(result.functions).toHaveLength(1);
       expect(result.functions[0].name).toBe('greet');
     });
+
+    it('should handle .mts and .cts files as TypeScript', async () => {
+      const esmFile = path.join(tempDir, 'module.mts');
+      const commonJsFile = path.join(tempDir, 'module.cts');
+
+      await fs.writeFile(
+        esmFile,
+        `
+          export function fromEsm(input: string): string {
+            return input.toUpperCase();
+          }
+        `,
+      );
+      await fs.writeFile(
+        commonJsFile,
+        `
+          export const fromCommonJs = (value: number): number => {
+            return value + 1;
+          };
+        `,
+      );
+
+      const esmResult = await parseFile(esmFile);
+      const commonJsResult = await parseFile(commonJsFile);
+
+      expect(esmResult.language).toBe('typescript');
+      expect(esmResult.functions[0]?.name).toBe('fromEsm');
+      expect(commonJsResult.language).toBe('typescript');
+      expect(commonJsResult.functions[0]?.name).toBe('fromCommonJs');
+    });
   });
 
   describe('scanDirectory', () => {
@@ -243,6 +275,25 @@ describe('Parser', () => {
 
       expect(files).toHaveLength(1);
       expect(files[0]?.endsWith(path.join('src', 'index.ts'))).toBe(true);
+    });
+
+    it('should match .mts and .cts when a .ts include pattern is used', async () => {
+      const srcDir = path.join(tempDir, 'include-ts-alias-test', 'src');
+
+      await fs.mkdir(srcDir, { recursive: true });
+
+      await fs.writeFile(path.join(srcDir, 'index.ts'), 'export const source = true');
+      await fs.writeFile(path.join(srcDir, 'server.mts'), 'export const esm = true');
+      await fs.writeFile(path.join(srcDir, 'client.cts'), 'export const cjs = true');
+
+      const files = await scanDirectory(path.join(tempDir, 'include-ts-alias-test'), [
+        'src/**/*.ts',
+      ]);
+
+      expect(files).toHaveLength(3);
+      expect(files.some((f) => f.endsWith(path.join('src', 'index.ts')))).toBe(true);
+      expect(files.some((f) => f.endsWith(path.join('src', 'server.mts')))).toBe(true);
+      expect(files.some((f) => f.endsWith(path.join('src', 'client.cts')))).toBe(true);
     });
 
     it('should exclude git metadata directories by default', async () => {

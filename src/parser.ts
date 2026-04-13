@@ -5,6 +5,25 @@ import { parseCSharpFile } from './csharp-parser.js';
 import { ClassInfo, FileIndex, FunctionInfo, ImportInfo, VariableInfo } from './schemas.js';
 import { parseSqlFile } from './sql-parser.js';
 
+const TYPESCRIPT_EXTENSIONS = ['.ts', '.tsx', '.mts', '.cts'] as const;
+const TYPESCRIPT_NON_JSX_EXTENSIONS = ['.ts', '.mts', '.cts'] as const;
+const SUPPORTED_EXTENSIONS = [
+  '.js',
+  '.jsx',
+  '.ts',
+  '.tsx',
+  '.mts',
+  '.cts',
+  '.mjs',
+  '.cjs',
+  '.cs',
+  '.sql',
+] as const;
+
+function isTypeScriptExtension(ext: string): boolean {
+  return TYPESCRIPT_EXTENSIONS.includes(ext as (typeof TYPESCRIPT_EXTENSIONS)[number]);
+}
+
 /**
  * Parse een bestand en extraheer AST informatie
  */
@@ -30,12 +49,21 @@ export async function parseFile(filePath: string): Promise<FileIndex> {
 async function parseJavaScriptFile(filePath: string): Promise<FileIndex> {
   const content = await fs.readFile(filePath, 'utf-8');
   const relativePath = path.basename(filePath);
+  const extension = path.extname(filePath).toLowerCase();
 
   // Bepaal ScriptKind op basis van bestandsextensie
   let scriptKind = ts.ScriptKind.JS;
-  if (filePath.endsWith('.ts')) scriptKind = ts.ScriptKind.TS;
-  else if (filePath.endsWith('.tsx')) scriptKind = ts.ScriptKind.TSX;
-  else if (filePath.endsWith('.jsx')) scriptKind = ts.ScriptKind.JSX;
+  if (
+    TYPESCRIPT_NON_JSX_EXTENSIONS.includes(
+      extension as (typeof TYPESCRIPT_NON_JSX_EXTENSIONS)[number],
+    )
+  ) {
+    scriptKind = ts.ScriptKind.TS;
+  } else if (extension === '.tsx') {
+    scriptKind = ts.ScriptKind.TSX;
+  } else if (extension === '.jsx') {
+    scriptKind = ts.ScriptKind.JSX;
+  }
 
   // Parse met TypeScript Compiler API
   const sourceFile = ts.createSourceFile(
@@ -259,7 +287,7 @@ async function parseJavaScriptFile(filePath: string): Promise<FileIndex> {
 
   // Bepaal language op basis van extensie
   let language: 'javascript' | 'typescript' = 'javascript';
-  if (filePath.endsWith('.ts') || filePath.endsWith('.tsx')) {
+  if (isTypeScriptExtension(extension)) {
     language = 'typescript';
   }
 
@@ -279,24 +307,36 @@ async function parseJavaScriptFile(filePath: string): Promise<FileIndex> {
  */
 export function shouldParseFile(filePath: string): boolean {
   const ext = path.extname(filePath).toLowerCase();
-  const supportedExtensions = ['.js', '.jsx', '.ts', '.tsx', '.mjs', '.cjs', '.cs', '.sql'];
-  return supportedExtensions.includes(ext);
+  return SUPPORTED_EXTENSIONS.includes(ext as (typeof SUPPORTED_EXTENSIONS)[number]);
 }
 
 function normalizeGlobPath(filePath: string): string {
   return filePath.replace(/\\/g, '/');
 }
 
-function matchesGlobPattern(filePath: string, pattern: string): boolean {
-  const normalizedPath = normalizeGlobPath(filePath);
+function expandGlobPatternAliases(pattern: string): string[] {
   const normalizedPattern = normalizeGlobPath(pattern);
 
-  if (path.posix.matchesGlob(normalizedPath, normalizedPattern)) {
-    return true;
+  if (!normalizedPattern.toLowerCase().endsWith('.ts')) {
+    return [normalizedPattern];
   }
 
-  if (normalizedPattern.endsWith('/**')) {
-    return normalizedPath === normalizedPattern.slice(0, -3);
+  const patternWithoutExtension = normalizedPattern.slice(0, -3);
+  return [normalizedPattern, `${patternWithoutExtension}.mts`, `${patternWithoutExtension}.cts`];
+}
+
+function matchesGlobPattern(filePath: string, pattern: string): boolean {
+  const normalizedPath = normalizeGlobPath(filePath);
+  const normalizedPatterns = expandGlobPatternAliases(pattern);
+
+  for (const normalizedPattern of normalizedPatterns) {
+    if (path.posix.matchesGlob(normalizedPath, normalizedPattern)) {
+      return true;
+    }
+
+    if (normalizedPattern.endsWith('/**') && normalizedPath === normalizedPattern.slice(0, -3)) {
+      return true;
+    }
   }
 
   return false;

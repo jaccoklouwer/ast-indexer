@@ -6,9 +6,12 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
 import * as http from 'node:http';
 import { createRequire } from 'node:module';
+import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
 import { RepositoryIndexer } from './indexer.js';
 import {
+  IndexRepositoryArgsSchema,
   SearchClassesArgsSchema,
   SearchFunctionsArgsSchema,
   SearchImportsArgsSchema,
@@ -62,18 +65,6 @@ function printHelp(): void {
   );
 }
 
-const IndexRepositoryArgsSchema = z.object({
-  repositoryPath: z.string().describe('Absolute pad naar de Git repository'),
-  includePatterns: z
-    .array(z.string())
-    .optional()
-    .describe('Optionele glob patterns voor bestanden om te includeren'),
-  excludePatterns: z
-    .array(z.string())
-    .optional()
-    .describe('Optionele glob patterns voor bestanden om te excluderen'),
-});
-
 const GetStatisticsArgsSchema = z.object({
   repositoryPath: z.string().describe('Pad naar geïndexeerde repository'),
 });
@@ -82,7 +73,7 @@ const GetStatisticsArgsSchema = z.object({
  * Maakt een nieuwe McpServer instantie aan met alle tool handlers.
  * De gedeelde indexer singleton wordt via closure ingevangen.
  */
-function createMcpServer(): McpServer {
+export function createMcpServer(): McpServer {
   const server = new McpServer({
     name: 'ast-indexer',
     version: SERVER_VERSION,
@@ -93,6 +84,7 @@ function createMcpServer(): McpServer {
     {
       description:
         'Indexeer een Git repository en analyseer de code structuur met AST parsing. Dit parseert alle JavaScript/TypeScript bestanden en extraheert functies, classes, imports en variabelen.',
+      inputSchema: IndexRepositoryArgsSchema,
     },
     async (args) => {
       const validatedArgs = IndexRepositoryArgsSchema.parse(args);
@@ -126,6 +118,7 @@ function createMcpServer(): McpServer {
     {
       description:
         'Zoek functies in een geïndexeerde repository. Je kunt filteren op functienaam en bestandsnaam.',
+      inputSchema: SearchFunctionsArgsSchema,
     },
     async (args) => {
       const validatedArgs = SearchFunctionsArgsSchema.parse(args);
@@ -160,6 +153,7 @@ function createMcpServer(): McpServer {
     {
       description:
         'Zoek classes in een geïndexeerde repository. Je kunt filteren op classnaam en bestandsnaam.',
+      inputSchema: SearchClassesArgsSchema,
     },
     async (args) => {
       const validatedArgs = SearchClassesArgsSchema.parse(args);
@@ -194,6 +188,7 @@ function createMcpServer(): McpServer {
     {
       description:
         'Zoek import statements in een geïndexeerde repository. Je kunt filteren op module naam en bestandsnaam.',
+      inputSchema: SearchImportsArgsSchema,
     },
     async (args) => {
       const validatedArgs = SearchImportsArgsSchema.parse(args);
@@ -228,6 +223,7 @@ function createMcpServer(): McpServer {
     {
       description:
         'Haal statistieken op van een geïndexeerde repository, inclusief aantal functies, classes, imports en bestanden.',
+      inputSchema: GetStatisticsArgsSchema,
     },
     async (args) => {
       const validatedArgs = GetStatisticsArgsSchema.parse(args);
@@ -256,6 +252,7 @@ function createMcpServer(): McpServer {
     {
       description:
         'Zoek SQL tables in een geïndexeerde repository. Ondersteunt SQL bestanden met CREATE TABLE statements.',
+      inputSchema: SearchSqlTablesArgsSchema,
     },
     async (args) => {
       const validatedArgs = SearchSqlTablesArgsSchema.parse(args);
@@ -290,6 +287,7 @@ function createMcpServer(): McpServer {
     {
       description:
         'Zoek SQL views in een geïndexeerde repository. Ondersteunt SQL bestanden met CREATE VIEW statements.',
+      inputSchema: SearchSqlViewsArgsSchema,
     },
     async (args) => {
       const validatedArgs = SearchSqlViewsArgsSchema.parse(args);
@@ -438,7 +436,14 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  console.error('Server fout:', error);
-  process.exit(1);
-});
+function isDirectExecution(): boolean {
+  const entryPoint = process.argv[1];
+  return Boolean(entryPoint) && fileURLToPath(import.meta.url) === path.resolve(entryPoint);
+}
+
+if (isDirectExecution()) {
+  main().catch((error) => {
+    console.error('Server fout:', error);
+    process.exit(1);
+  });
+}
