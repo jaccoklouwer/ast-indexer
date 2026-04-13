@@ -107,26 +107,16 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: "24"
           cache: pnpm
           registry-url: https://registry.npmjs.org
-
-      - name: Ensure npm version supports trusted publishing
-        run: npm install --global npm@^11.5.1
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Publish to npm
         shell: bash
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          if [[ -n "$NPM_TOKEN" ]]; then
-            printf '//registry.npmjs.org/:_authToken=%s\n' "$NPM_TOKEN" > "$HOME/.npmrc"
-          fi
-
-          npm publish --provenance --access public
+        run: npm publish --provenance --access public
 
       - name: Extract release notes from changelog
         shell: bash
