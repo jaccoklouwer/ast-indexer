@@ -112,6 +112,8 @@ jobs:
 
       - name: Publish to npm
         shell: bash
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npm publish --provenance --access public
 
       - name: Extract release notes from changelog
