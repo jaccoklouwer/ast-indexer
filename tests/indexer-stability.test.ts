@@ -25,6 +25,7 @@ vi.mock('../src/cache.js', () => ({
 let RepositoryIndexerClass: typeof import('../src/indexer.js').RepositoryIndexer;
 let tempDir: string;
 let repoPath: string;
+let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
 
 function createIndexedFile(filePath: string): FileIndex {
   return {
@@ -61,6 +62,7 @@ describe('RepositoryIndexer stability guardrails', () => {
   });
 
   beforeEach(() => {
+    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     readDiskCacheMock.mockResolvedValue(null);
     writeDiskCacheMock.mockResolvedValue(undefined);
     cleanupOldEntriesMock.mockResolvedValue(undefined);
@@ -73,6 +75,7 @@ describe('RepositoryIndexer stability guardrails', () => {
   });
 
   afterEach(() => {
+    consoleErrorSpy.mockRestore();
     vi.resetAllMocks();
     delete process.env.AST_INDEXER_CONCURRENCY;
     delete process.env.AST_INDEXER_MAX_FILES;

@@ -2,13 +2,14 @@ import * as fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
 import { simpleGit } from 'simple-git';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { RepositoryIndexer } from '../src/indexer.js';
 
 describe('RepositoryIndexer', () => {
   let tempDir: string;
   let indexer: RepositoryIndexer;
   let repoPath: string;
+  let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
 
   beforeAll(async () => {
     // Create temporary directory
@@ -69,7 +70,12 @@ describe('RepositoryIndexer', () => {
   });
 
   beforeEach(() => {
+    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     indexer = new RepositoryIndexer();
+  });
+
+  afterEach(() => {
+    consoleErrorSpy.mockRestore();
   });
 
   describe('isGitRepository', () => {
