@@ -2,7 +2,7 @@ import * as fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { parseSqlFile } from '../src/sql-parser';
+import { parseSqlFile } from '../src/sql-parser.js';
 
 describe('SQL Parser', () => {
   let tempDir: string;

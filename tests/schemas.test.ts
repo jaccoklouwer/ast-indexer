@@ -8,7 +8,7 @@ import {
   RepositoryIndexSchema,
   SearchFunctionsArgsSchema,
   VariableSchema,
-} from '../src/schemas';
+} from '../src/schemas.js';
 
 describe('Schema Validation', () => {
   describe('FunctionSchema', () => {

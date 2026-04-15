@@ -1,4 +1,5 @@
 import * as fs from 'fs/promises';
+import * as os from 'node:os';
 import * as path from 'path';
 import { simpleGit, SimpleGit } from 'simple-git';
 import { cleanupOldEntries, readDiskCache, writeDiskCache } from './cache.js';
@@ -12,6 +13,94 @@ import {
   SqlTableInfo,
   SqlViewInfo,
 } from './schemas.js';
+
+const DEFAULT_MAX_FILES = 10_000;
+const DEFAULT_MAX_CONCURRENCY = 8;
+const LARGE_REPOSITORY_FILE_COUNT = 2_000;
+const VERY_LARGE_REPOSITORY_FILE_COUNT = 5_000;
+const DEFAULT_MAX_PARSE_FAILURES = 25;
+const DEFAULT_MAX_PARSE_FAILURE_RATE = 0.1;
+const MAX_RECORDED_PARSE_ERRORS = 5;
+
+interface IndexingGuardrails {
+  concurrency: number;
+  maxFiles: number;
+  maxParseFailures: number;
+  maxParseFailureRate: number;
+}
+
+function parsePositiveIntegerEnv(varName: string): number | undefined {
+  const rawValue = process.env[varName];
+  if (!rawValue) {
+    return undefined;
+  }
+
+  const parsedValue = Number.parseInt(rawValue, 10);
+  if (!Number.isFinite(parsedValue) || parsedValue <= 0) {
+    console.error(`Ongeldige waarde voor ${varName}: ${rawValue}`);
+    return undefined;
+  }
+
+  return parsedValue;
+}
+
+function resolveIndexingGuardrails(fileCount: number): IndexingGuardrails {
+  const cpuCount = os.cpus()?.length ?? 4;
+  const configuredConcurrency = parsePositiveIntegerEnv('AST_INDEXER_CONCURRENCY');
+  const baseConcurrency = Math.min(DEFAULT_MAX_CONCURRENCY, Math.max(1, cpuCount));
+  let concurrency = configuredConcurrency ?? baseConcurrency;
+
+  if (configuredConcurrency === undefined) {
+    if (fileCount >= VERY_LARGE_REPOSITORY_FILE_COUNT) {
+      concurrency = Math.min(concurrency, 2);
+    } else if (fileCount >= LARGE_REPOSITORY_FILE_COUNT) {
+      concurrency = Math.min(concurrency, 4);
+    }
+  }
+
+  return {
+    concurrency: Math.max(1, concurrency),
+    maxFiles: parsePositiveIntegerEnv('AST_INDEXER_MAX_FILES') ?? DEFAULT_MAX_FILES,
+    maxParseFailures:
+      parsePositiveIntegerEnv('AST_INDEXER_MAX_PARSE_FAILURES') ?? DEFAULT_MAX_PARSE_FAILURES,
+    maxParseFailureRate: DEFAULT_MAX_PARSE_FAILURE_RATE,
+  };
+}
+
+function shouldAbortForParseFailures(
+  completedFiles: number,
+  parseFailures: number,
+  guardrails: IndexingGuardrails,
+): boolean {
+  if (completedFiles === 0 || parseFailures === 0) {
+    return false;
+  }
+
+  const parseFailureRate = parseFailures / completedFiles;
+  return (
+    parseFailures >= guardrails.maxParseFailures &&
+    parseFailureRate >= guardrails.maxParseFailureRate
+  );
+}
+
+function formatParseFailureError(
+  repositoryPath: string,
+  parseFailureCount: number,
+  parseErrors: string[],
+  completedFiles: number,
+  guardrails: IndexingGuardrails,
+): Error {
+  const details = parseErrors.join(' | ');
+  return new Error(
+    [
+      `Indexeren van ${repositoryPath} afgebroken na ${completedFiles} bestanden.`,
+      `Te veel parse-fouten (${parseFailureCount}; limiet ${guardrails.maxParseFailures} en ${Math.round(guardrails.maxParseFailureRate * 100)}% failure-rate).`,
+      details ? `Voorbeelden: ${details}` : undefined,
+    ]
+      .filter(Boolean)
+      .join(' '),
+  );
+}
 
 /**
  * Repository Indexer voor Git repositories
@@ -32,6 +121,8 @@ export class RepositoryIndexer {
     includePatterns?: string[],
     excludePatterns?: string[],
   ): Promise<RepositoryIndex> {
+    const startedAt = Date.now();
+
     // Valideer dat het een Git repository is
     const isRepo = await this.isGitRepository(repositoryPath);
     if (!isRepo) {
@@ -63,29 +154,72 @@ export class RepositoryIndexer {
 
     // Scan directory voor bestanden
     const filePaths = await scanDirectory(repositoryPath, includePatterns, excludePatterns);
+    const guardrails = resolveIndexingGuardrails(filePaths.length);
+
+    if (filePaths.length > guardrails.maxFiles) {
+      throw new Error(
+        `Repository bevat ${filePaths.length} parseerbare bestanden. Limiet is ${guardrails.maxFiles}. Verfijn include/exclude patterns of verhoog AST_INDEXER_MAX_FILES.`,
+      );
+    }
+
+    console.error(
+      `[index_repository] Start ${repositoryPath} (${filePaths.length} bestanden, concurrency ${guardrails.concurrency})`,
+    );
 
     // Parse bestanden met concurrency (env override: AST_INDEXER_CONCURRENCY)
     const files: FileIndex[] = [];
-    const cpuInfo = (await import('os')).cpus();
-    const envConcRaw = process.env.AST_INDEXER_CONCURRENCY;
-    const envConc = envConcRaw ? Number.parseInt(envConcRaw, 10) : NaN;
-    const defaultConc = Math.min(16, Math.max(1, cpuInfo?.length ?? 4));
-    const concurrency = Number.isFinite(envConc) && envConc > 0 ? envConc : defaultConc;
     let i = 0;
+    let completedFiles = 0;
+    let parseFailureCount = 0;
+    let abortedError: Error | undefined;
+    const parseErrors: string[] = [];
+
     async function worker() {
-      while (i < filePaths.length) {
+      while (i < filePaths.length && !abortedError) {
         const idx = i++;
         const filePath = filePaths[idx];
+
+        if (!filePath) {
+          return;
+        }
+
         try {
           const fileIndex = await parseFile(filePath);
-          files.push(fileIndex);
+          if (!abortedError) {
+            files.push(fileIndex);
+          }
         } catch (error) {
+          parseFailureCount += 1;
+          const message = error instanceof Error ? error.message : String(error);
+          if (parseErrors.length < MAX_RECORDED_PARSE_ERRORS) {
+            parseErrors.push(`${path.basename(filePath)}: ${message}`);
+          }
           console.error(`Fout bij parsen van ${filePath}:`, error);
+        } finally {
+          completedFiles += 1;
+        }
+
+        if (
+          !abortedError &&
+          shouldAbortForParseFailures(completedFiles, parseFailureCount, guardrails)
+        ) {
+          abortedError = formatParseFailureError(
+            repositoryPath,
+            parseFailureCount,
+            parseErrors,
+            completedFiles,
+            guardrails,
+          );
         }
       }
     }
-    const workers = Array.from({ length: concurrency }, () => worker());
+
+    const workers = Array.from({ length: guardrails.concurrency }, () => worker());
     await Promise.all(workers);
+
+    if (abortedError) {
+      throw abortedError;
+    }
 
     const index: RepositoryIndex = {
       repositoryPath,
@@ -98,9 +232,18 @@ export class RepositoryIndexer {
 
     // Schrijf naar schijfcache en ruim oude entries op
     if (commitHash) {
-      await writeDiskCache(repositoryPath, commitHash, index, includePatterns, excludePatterns);
+      try {
+        await writeDiskCache(repositoryPath, commitHash, index, includePatterns, excludePatterns);
+      } catch (error) {
+        console.error(`[index_repository] Cache schrijven mislukt voor ${repositoryPath}:`, error);
+      }
+
       await cleanupOldEntries(repositoryPath);
     }
+
+    console.error(
+      `[index_repository] Klaar ${repositoryPath} (${files.length} bestanden in ${Date.now() - startedAt} ms)`,
+    );
 
     return index;
   }

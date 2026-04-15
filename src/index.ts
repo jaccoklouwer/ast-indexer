@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import * as crypto from 'node:crypto';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
@@ -27,6 +28,103 @@ const CLI_NAME = 'ast-indexer';
 const PACKAGE_NAME = packageMetadata.name ?? '@klouwer94/ast-indexer';
 const SERVER_VERSION = packageMetadata.version ?? '0.0.0';
 const DEFAULT_HTTP_PORT = 3847;
+const DEFAULT_MAX_HTTP_BODY_BYTES = 1024 * 1024;
+const JSON_HEADERS = { 'Content-Type': 'application/json' };
+const NOT_FOUND_ERROR = 'Niet gevonden';
+const INVALID_REQUEST_ERROR = 'Ongeldig verzoek';
+const INVALID_JSON_ERROR = 'Ongeldige JSON payload';
+const INTERNAL_SERVER_ERROR = 'Interne serverfout';
+let processHandlersRegistered = false;
+
+interface RequestBodyResult {
+  body: unknown;
+  hasInvalidJson: boolean;
+}
+
+function parsePositiveIntegerEnv(varName: string): number | undefined {
+  const rawValue = process.env[varName];
+  if (!rawValue) {
+    return undefined;
+  }
+
+  const parsedValue = Number.parseInt(rawValue, 10);
+  if (!Number.isFinite(parsedValue) || parsedValue <= 0) {
+    console.error(`Ongeldige waarde voor ${varName}: ${rawValue}`);
+    return undefined;
+  }
+
+  return parsedValue;
+}
+
+function getMaxHttpBodyBytes(): number {
+  return parsePositiveIntegerEnv('AST_INDEXER_MAX_REQUEST_BYTES') ?? DEFAULT_MAX_HTTP_BODY_BYTES;
+}
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function sendJsonResponse(
+  res: http.ServerResponse,
+  statusCode: number,
+  payload: Record<string, unknown>,
+): void {
+  res.writeHead(statusCode, JSON_HEADERS);
+  res.end(JSON.stringify(payload));
+}
+
+function registerProcessHandlers(): void {
+  if (processHandlersRegistered) {
+    return;
+  }
+
+  processHandlersRegistered = true;
+
+  process.on('unhandledRejection', (reason) => {
+    console.error('Onverwerkte promise rejection:', reason);
+  });
+
+  process.on('uncaughtException', (error) => {
+    console.error('Onverwerkte uitzondering:', error);
+  });
+}
+
+async function readRequestBody(req: http.IncomingMessage): Promise<RequestBodyResult> {
+  if (req.method === 'GET' || req.method === 'HEAD') {
+    return { body: undefined, hasInvalidJson: false };
+  }
+
+  const maxHttpBodyBytes = getMaxHttpBodyBytes();
+
+  return await new Promise<RequestBodyResult>((resolve, reject) => {
+    let data = '';
+    let size = 0;
+
+    req.on('error', reject);
+    req.on('data', (chunk: Buffer | string) => {
+      const chunkString = Buffer.isBuffer(chunk) ? chunk.toString('utf-8') : chunk;
+      size += Buffer.byteLength(chunkString);
+      if (size > maxHttpBodyBytes) {
+        reject(new Error(`Request body te groot (max ${maxHttpBodyBytes} bytes)`));
+        return;
+      }
+
+      data += chunkString;
+    });
+    req.on('end', () => {
+      if (!data) {
+        resolve({ body: undefined, hasInvalidJson: false });
+        return;
+      }
+
+      try {
+        resolve({ body: JSON.parse(data), hasInvalidJson: false });
+      } catch {
+        resolve({ body: undefined, hasInvalidJson: true });
+      }
+    });
+  });
+}
 
 /**
  * Toon hulp/usage voor de MCP server CLI.
@@ -47,7 +145,10 @@ function printHelp(): void {
       '  --concurrency <n>         Overschrijf aantal parse workers (env: AST_INDEXER_CONCURRENCY)',
       '',
       'Omgevingsvariabelen:',
-      '  AST_INDEXER_CONCURRENCY  Aantal workers tijdens indexeren (standaard: min(16, cpu cores))',
+      '  AST_INDEXER_CONCURRENCY  Aantal workers tijdens indexeren (standaard: min(8, cpu cores))',
+      '  AST_INDEXER_MAX_FILES  Maximum aantal parseerbare bestanden per index run (standaard: 10000)',
+      '  AST_INDEXER_MAX_PARSE_FAILURES  Maximaal aantal parse-fouten voordat indexeren stopt (standaard: 25)',
+      '  AST_INDEXER_MAX_REQUEST_BYTES  Maximum grootte van een HTTP request body in bytes (standaard: 1048576)',
       '',
       'Beschrijving:',
       '  Deze server biedt MCP tools voor het indexeren van Git repositories met AST parsing',
@@ -88,28 +189,35 @@ export function createMcpServer(): McpServer {
     },
     async (args) => {
       const validatedArgs = IndexRepositoryArgsSchema.parse(args);
-      const index = await indexer.indexRepository(
-        validatedArgs.repositoryPath,
-        validatedArgs.includePatterns,
-        validatedArgs.excludePatterns,
-      );
+      try {
+        const index = await indexer.indexRepository(
+          validatedArgs.repositoryPath,
+          validatedArgs.includePatterns,
+          validatedArgs.excludePatterns,
+        );
 
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(
-              {
-                success: true,
-                message: `Repository geïndexeerd: ${index.files.length} bestanden`,
-                statistics: indexer.getStatistics(validatedArgs.repositoryPath),
-              },
-              null,
-              2,
-            ),
-          },
-        ],
-      };
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(
+                {
+                  success: true,
+                  message: `Repository geïndexeerd: ${index.files.length} bestanden`,
+                  statistics: indexer.getStatistics(validatedArgs.repositoryPath),
+                },
+                null,
+                2,
+              ),
+            },
+          ],
+        };
+      } catch (error) {
+        console.error(`[index_repository] Mislukt voor ${validatedArgs.repositoryPath}:`, error);
+        throw new Error(`index_repository mislukt: ${getErrorMessage(error)}`, {
+          cause: error,
+        });
+      }
     },
   );
 
@@ -344,57 +452,71 @@ function startHttpServer(port: number): Promise<void> {
   const sessions = new Map<string, StreamableHTTPServerTransport>();
 
   const httpServer = http.createServer(async (req, res) => {
-    const url = new URL(req.url ?? '/', `http://localhost:${port}`);
+    try {
+      const url = new URL(req.url ?? '/', `http://localhost:${port}`);
 
-    if (url.pathname !== '/mcp') {
-      res.writeHead(404, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Niet gevonden' }));
-      return;
-    }
+      if (url.pathname !== '/mcp') {
+        sendJsonResponse(res, 404, { error: NOT_FOUND_ERROR });
+        return;
+      }
 
-    // Lees de request body
-    const body = await new Promise<unknown>((resolve) => {
-      let data = '';
-      req.on('data', (chunk: Buffer) => {
-        data += chunk.toString();
-      });
-      req.on('end', () => {
-        try {
-          resolve(JSON.parse(data));
-        } catch {
-          resolve(undefined);
+      const { body, hasInvalidJson } = await readRequestBody(req);
+      if (hasInvalidJson) {
+        sendJsonResponse(res, 400, { error: INVALID_JSON_ERROR });
+        return;
+      }
+
+      const sessionIdHeader = req.headers['mcp-session-id'];
+      const sessionId = Array.isArray(sessionIdHeader) ? sessionIdHeader[0] : sessionIdHeader;
+
+      if (sessionId && sessions.has(sessionId)) {
+        const transport = sessions.get(sessionId);
+        if (!transport) {
+          sendJsonResponse(res, 400, { error: INVALID_REQUEST_ERROR });
+          return;
         }
+
+        await transport.handleRequest(req, res, body);
+        return;
+      }
+
+      if (!sessionId && req.method === 'POST' && isInitializeRequest(body)) {
+        const transport = new StreamableHTTPServerTransport({
+          sessionIdGenerator: () => crypto.randomUUID(),
+          onsessioninitialized: (sid): void => {
+            sessions.set(sid, transport);
+          },
+        });
+
+        transport.onclose = () => {
+          if (transport.sessionId) {
+            sessions.delete(transport.sessionId);
+          }
+        };
+
+        const server = createMcpServer();
+        await server.connect(transport);
+        await transport.handleRequest(req, res, body);
+        return;
+      }
+
+      sendJsonResponse(res, 400, { error: INVALID_REQUEST_ERROR });
+    } catch (error) {
+      console.error(`[http] Fout bij ${req.method ?? 'UNKNOWN'} ${req.url ?? '/'}:`, error);
+
+      if (res.headersSent) {
+        if (!res.writableEnded) {
+          res.end();
+        }
+        return;
+      }
+
+      const message = getErrorMessage(error);
+      const statusCode = message.startsWith('Request body te groot') ? 413 : 500;
+      sendJsonResponse(res, statusCode, {
+        error: statusCode === 413 ? message : INTERNAL_SERVER_ERROR,
       });
-    });
-
-    const sessionId = req.headers['mcp-session-id'] as string | undefined;
-
-    if (sessionId && sessions.has(sessionId)) {
-      // Bestaande sessie hergebruiken
-      const transport = sessions.get(sessionId)!;
-      await transport.handleRequest(req, res, body);
-      return;
     }
-
-    if (!sessionId && req.method === 'POST' && isInitializeRequest(body)) {
-      // Nieuwe sessie aanmaken
-      const transport = new StreamableHTTPServerTransport({
-        sessionIdGenerator: () => crypto.randomUUID(),
-        onsessioninitialized: (sid): void => {
-          sessions.set(sid, transport);
-        },
-      });
-      transport.onclose = () => {
-        if (transport.sessionId) sessions.delete(transport.sessionId);
-      };
-      const server = createMcpServer();
-      await server.connect(transport);
-      await transport.handleRequest(req, res, body);
-      return;
-    }
-
-    res.writeHead(400, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: 'Ongeldig verzoek' }));
   });
 
   return new Promise((resolve, reject) => {
@@ -407,6 +529,8 @@ function startHttpServer(port: number): Promise<void> {
 }
 
 async function main() {
+  registerProcessHandlers();
+
   // CLI help afhandelen voordat we verbinden
   const args = process.argv.slice(2);
   if (args.includes('-h') || args.includes('--help')) {

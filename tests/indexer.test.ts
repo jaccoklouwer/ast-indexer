@@ -1,9 +1,9 @@
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
-import simpleGit from 'simple-git';
+import { simpleGit } from 'simple-git';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { RepositoryIndexer } from '../src/indexer';
+import { RepositoryIndexer } from '../src/indexer.js';
 
 describe('RepositoryIndexer', () => {
   let tempDir: string;

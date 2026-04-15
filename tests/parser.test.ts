@@ -2,7 +2,7 @@ import * as fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { parseFile, scanDirectory, shouldParseFile } from '../src/parser';
+import { parseFile, scanDirectory, shouldParseFile } from '../src/parser.js';
 
 describe('Parser', () => {
   let tempDir: string;

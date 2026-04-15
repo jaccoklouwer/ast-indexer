@@ -34,6 +34,7 @@ For local build and `npx` variants, see [docs/usage.md](docs/usage.md).
 - Search indexed repositories for functions, classes, imports, SQL tables, and SQL views.
 - Return repository-level statistics for indexed files and extracted symbols.
 - Cache indexes by repository state to avoid unnecessary reprocessing.
+- Fail fast on oversized or unstable indexing runs instead of letting the MCP server stop unexpectedly.
 - Built with TypeScript, Zod, and Vitest.
 
 ### Using the MCP server
