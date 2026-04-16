@@ -1,49 +1,54 @@
 declare module 'tree-sitter' {
-  namespace Parser {
-    interface Point {
-      row: number;
-      column: number;
-    }
-
-    interface SyntaxNode {
-      type: string;
-      text: string;
-      startIndex: number;
-      endIndex: number;
-      startPosition: Point;
-      endPosition: Point;
-      parent: SyntaxNode | null;
-      children: SyntaxNode[];
-      namedChildren: SyntaxNode[];
-      childCount: number;
-      namedChildCount: number;
-      child(index: number): SyntaxNode | null;
-      namedChild(index: number): SyntaxNode | null;
-      childForFieldName(fieldName: string): SyntaxNode | null;
-      hasError(): boolean;
-      isMissing(): boolean;
-      toString(): string;
-    }
-
-    interface Tree {
-      rootNode: SyntaxNode;
-    }
-
-    interface Language {
-      readonly name: string;
-    }
+  export interface ParserPoint {
+    row: number;
+    column: number;
   }
 
-  class Parser {
-    setLanguage(language: Parser.Language): void;
-    parse(input: string): Parser.Tree;
+  export interface SyntaxNode {
+    type: string;
+    text: string;
+    startIndex: number;
+    endIndex: number;
+    startPosition: ParserPoint;
+    endPosition: ParserPoint;
+    parent: SyntaxNode | null;
+    children: SyntaxNode[];
+    namedChildren: SyntaxNode[];
+    childCount: number;
+    child(index: number): SyntaxNode | null;
+    childForFieldName(fieldName: string): SyntaxNode | null;
   }
 
-  export = Parser;
+  export interface Tree {
+    rootNode: SyntaxNode;
+  }
+
+  export interface Language {
+    name?: string;
+  }
+
+  export default class Parser {
+    setLanguage(language: Language): void;
+    parse(input: string): Tree;
+  }
+}
+
+declare module 'tree-sitter-javascript' {
+  const languageModule: { language: unknown };
+  export default languageModule;
+}
+
+declare module 'tree-sitter-typescript' {
+  const languageModule: { typescript: unknown; tsx: unknown };
+  export default languageModule;
 }
 
 declare module 'tree-sitter-c-sharp' {
-  import type Parser from 'tree-sitter';
-  const language: Parser.Language;
-  export = language;
+  const languageModule: { language: unknown };
+  export default languageModule;
+}
+
+declare module 'tree-sitter-sql' {
+  const languageModule: { language: unknown };
+  export default languageModule;
 }

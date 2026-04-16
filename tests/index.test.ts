@@ -9,6 +9,9 @@ const TOOL_NAMES = [
   'get_statistics',
   'search_sql_tables',
   'search_sql_views',
+  'search_sql_triggers',
+  'search_sql_indexes',
+  'clear_cache',
 ] as const;
 
 describe('MCP server toolregistratie', () => {
@@ -35,14 +38,7 @@ describe('MCP server toolregistratie', () => {
 
     const inputSchema = server._registeredTools.index_repository?.inputSchema;
 
-    expect(inputSchema).toBeDefined();
     expect(inputSchema?.safeParse({}).success).toBe(false);
-    expect(
-      inputSchema?.safeParse({
-        repositoryPath: 'C:/repo',
-        includePatterns: ['src/**/*.ts'],
-        excludePatterns: ['dist/**'],
-      }).success,
-    ).toBe(true);
+    expect(inputSchema?.safeParse({ repositoryPath: 'C:/repo' }).success).toBe(true);
   });
 });

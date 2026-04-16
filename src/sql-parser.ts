@@ -1,287 +1,135 @@
-import * as fs from 'fs/promises';
-import sqlParserPkg from 'node-sql-parser';
-// import * as path from 'path';
-import { FileIndex, FunctionInfo, SqlTableInfo, SqlViewInfo } from './schemas.js';
+import * as fs from 'node:fs/promises';
+import type { FileIndex, SqlTriggerInfo } from './schemas.js';
 
-// Ondersteun verschillende exportstijlen van node-sql-parser (CJS/ESM) zonder any
-type SqlParserCtor = new () => {
-  astify(sql: string, options?: { database?: string }): unknown;
-};
-
-function isCtor(val: unknown): val is SqlParserCtor {
-  return typeof val === 'function';
+function getLineNumber(content: string, index: number): number {
+  return content.slice(0, index).split(/\r?\n/).length;
 }
 
-function hasParser(val: unknown): val is { Parser: SqlParserCtor } {
-  const maybe = val as { Parser?: unknown };
-  return typeof maybe.Parser === 'function';
+function normalizeIdentifier(value: string): string {
+  return value
+    .replaceAll('[', '')
+    .replaceAll(']', '')
+    .replaceAll('"', '')
+    .replaceAll('`', '')
+    .trim();
 }
 
-const SqlParserCtorResolved: SqlParserCtor = hasParser(sqlParserPkg)
-  ? sqlParserPkg.Parser
-  : isCtor(sqlParserPkg)
-    ? sqlParserPkg
-    : (() => {
-        throw new Error('node-sql-parser export heeft geen Parser constructor');
-      })();
+function extractParamNames(section: string | undefined): string[] {
+  if (!section) {
+    return [];
+  }
 
-/**
- * Parse een SQL bestand
- */
+  return [...section.matchAll(/@?(\w+)/g)]
+    .map((match) => match[1])
+    .filter((value) => typeof value === 'string' && value.length > 0);
+}
+
+function extractColumnsFromDefinition(definition: string): string[] {
+  return [...definition.matchAll(/^[\t ]*\[?(\w+)\]?\s+[A-Z][A-Z0-9_]*(?:\([^\n)]*\))?/gim)]
+    .map((match) => match[1])
+    .filter(
+      (value) =>
+        !['CONSTRAINT', 'PRIMARY', 'FOREIGN', 'UNIQUE', 'CHECK'].includes(value.toUpperCase()),
+    );
+}
+
+function createSqlFileIndex(filePath: string): FileIndex {
+  return {
+    path: filePath,
+    functions: [],
+    classes: [],
+    imports: [],
+    variables: [],
+    exports: [],
+    sqlTables: [],
+    sqlViews: [],
+    sqlTriggers: [],
+    sqlIndexes: [],
+    language: 'sql',
+  };
+}
+
 export async function parseSqlFile(filePath: string): Promise<FileIndex> {
   const content = await fs.readFile(filePath, 'utf-8');
-  // const relativePath = path.basename(filePath);
+  const result = createSqlFileIndex(filePath);
 
-  const functions: FunctionInfo[] = [];
-  const sqlTables: SqlTableInfo[] = [];
-  const sqlViews: SqlViewInfo[] = [];
-
-  // Split op statements: semicolons en T-SQL batch separator 'GO'
-  const statements = content.split(/(?:;[\s\n]+|\bGO\b[\s\n]+)/i).filter((s) => s.trim());
-
-  let lineNumber = 1;
-  for (const statement of statements) {
-    const trimmed = statement.trim().toUpperCase();
-    const originalStatement = statement.trim();
-
-    try {
-      // Parse CREATE TABLE statements
-      if (trimmed.startsWith('CREATE TABLE')) {
-        const match = originalStatement.match(/CREATE\s+TABLE\s+(\[?[\w.]+\]?)/i);
-        if (match) {
-          const tableName = match[1].replace(/\[|\]/g, '');
-          const columns: string[] = [];
-
-          // Extract column names (basic regex - kan verbeterd worden)
-          const columnMatches = originalStatement.matchAll(/\n\s*(\[?\w+\]?)\s+[\w()]+/gi);
-          for (const colMatch of columnMatches) {
-            columns.push(colMatch[1].replace(/\[|\]/g, ''));
-          }
-
-          sqlTables.push({
-            name: tableName,
-            columns,
-            file: filePath,
-            line: lineNumber,
-          });
-        }
-      }
-
-      // Parse CREATE VIEW statements
-      else if (trimmed.startsWith('CREATE VIEW') || trimmed.startsWith('CREATE OR REPLACE VIEW')) {
-        const match = originalStatement.match(
-          /CREATE\s+(?:OR\s+REPLACE\s+)?VIEW\s+(\[?[\w.]+\]?)/i,
-        );
-        if (match) {
-          const viewName = match[1].replace(/\[|\]/g, '');
-          sqlViews.push({
-            name: viewName,
-            file: filePath,
-            line: lineNumber,
-          });
-        }
-      }
-
-      // Parse CREATE PROCEDURE statements
-      else if (trimmed.startsWith('CREATE PROCEDURE') || trimmed.startsWith('CREATE PROC')) {
-        const match = originalStatement.match(
-          /CREATE\s+(?:PROCEDURE|PROC)\s+(\[?[\w.]+\]?)\s*(?:\((.*?)\))?/is,
-        );
-        if (match) {
-          const procName = match[1].replace(/\[|\]/g, '');
-          const params: string[] = [];
-
-          // Extract parameter names: handle both parenthesized and header block before AS
-          let paramSection: string | undefined = match[2];
-          if (!paramSection) {
-            const header = originalStatement.match(/CREATE\s+(?:PROCEDURE|PROC)[\s\S]*?\bAS\b/i);
-            if (header && header[0]) {
-              // exclude the 'CREATE ... procName' prefix from header
-              const afterName = header[0].replace(
-                /CREATE\s+(?:PROCEDURE|PROC)\s+\[?[\w.]+\]?/i,
-                '',
-              );
-              paramSection = afterName;
-            }
-          }
-
-          if (paramSection) {
-            const paramMatches = paramSection.matchAll(/@(\w+)/g);
-            for (const pm of paramMatches) {
-              params.push(pm[1]);
-            }
-          }
-
-          functions.push({
-            name: procName,
-            type: 'stored_procedure',
-            params,
-            startLine: lineNumber,
-            endLine: lineNumber + statement.split('\n').length - 1,
-            file: filePath,
-          });
-        }
-      }
-
-      // Parse CREATE FUNCTION statements
-      else if (trimmed.startsWith('CREATE FUNCTION')) {
-        const match = originalStatement.match(
-          /CREATE\s+FUNCTION\s+(\[?[\w.]+\]?)\s*\((.*?)\)\s*RETURNS\s+([\w()]+)/is,
-        );
-        if (match) {
-          const funcName = match[1].replace(/\[|\]/g, '');
-          const params: string[] = [];
-          const returnType = match[3];
-
-          // Extract parameter names
-          if (match[2]) {
-            const paramMatches = match[2].matchAll(/@(\w+)/g);
-            for (const paramMatch of paramMatches) {
-              params.push(paramMatch[1]);
-            }
-          }
-
-          functions.push({
-            name: funcName,
-            type: 'sql_function',
-            params,
-            startLine: lineNumber,
-            endLine: lineNumber + statement.split('\n').length - 1,
-            file: filePath,
-            returnType,
-          });
-        }
-      }
-    } catch (error) {
-      // Skip statements die niet geparseerd kunnen worden
-      console.error(`Fout bij parsen van SQL statement op lijn ${lineNumber}:`, error);
-    }
-
-    lineNumber += statement.split('\n').length;
-  }
-
-  return {
-    path: filePath,
-    functions,
-    classes: [],
-    imports: [],
-    variables: [],
-    exports: [],
-    sqlTables,
-    sqlViews,
-    language: 'sql',
-  };
-}
-
-/**
- * Parse een SQL bestand met alternatieve methode (voor complexere queries)
- */
-export async function parseSqlFileAdvanced(filePath: string): Promise<FileIndex> {
-  const content = await fs.readFile(filePath, 'utf-8');
-  // const relativePath = path.basename(filePath);
-
-  const parser = new SqlParserCtorResolved();
-  const functions: FunctionInfo[] = [];
-  const sqlTables: SqlTableInfo[] = [];
-  const sqlViews: SqlViewInfo[] = [];
-
-  // Split content into individual statements
-  const statements = content.split(';').filter((s) => s.trim());
-
-  let lineNumber = 1;
-  for (const statement of statements) {
-    const trimmed = statement.trim();
-    if (!trimmed) continue;
-
-    try {
-      // Try to parse with node-sql-parser
-      const ast = parser.astify(trimmed, { database: 'TransactSQL' });
-
-      if (Array.isArray(ast)) {
-        for (const node of ast) {
-          processAstNode(node, lineNumber, filePath, functions, sqlTables, sqlViews);
-        }
-      } else if (ast) {
-        processAstNode(ast, lineNumber, filePath, functions, sqlTables, sqlViews);
-      }
-    } catch {
-      // Fallback to basic parsing if advanced parsing fails
-      // Already handled in parseSqlFile
-    }
-
-    lineNumber += statement.split('\n').length;
-  }
-
-  return {
-    path: filePath,
-    functions,
-    classes: [],
-    imports: [],
-    variables: [],
-    exports: [],
-    sqlTables,
-    sqlViews,
-    language: 'sql',
-  };
-}
-
-function processAstNode(
-  node: unknown,
-  lineNumber: number,
-  relativePath: string,
-  functions: FunctionInfo[],
-  sqlTables: SqlTableInfo[],
-  sqlViews: SqlViewInfo[],
-) {
-  if (!node) return;
-
-  // Handle CREATE TABLE
-  const n = node as {
-    type?: unknown;
-    keyword?: unknown;
-    table?: unknown;
-    create_definitions?: unknown;
-  };
-  if (n.type === 'create' && n.keyword === 'table') {
-    const tableRaw = n.table as unknown;
-    const tableName =
-      typeof tableRaw === 'string'
-        ? tableRaw
-        : ((tableRaw as { table?: unknown }).table as string | undefined) || 'unknown';
-
-    const defs = n.create_definitions as unknown;
-    const columns = Array.isArray(defs)
-      ? (defs
-          .map((def) => {
-            const d = def as { column?: unknown };
-            const c = d.column as unknown;
-            return typeof c === 'string'
-              ? c
-              : ((c as { column?: unknown }).column as string | undefined) || undefined;
-          })
-          .filter((v): v is string => Boolean(v)) as string[])
-      : [];
-
-    sqlTables.push({
+  const tableRegex = /CREATE\s+TABLE\s+([^\s(]+)\s*\(([\s\S]*?)\)\s*(?:;|\bGO\b|$)/gim;
+  for (const match of content.matchAll(tableRegex)) {
+    const tableName = normalizeIdentifier(match[1]);
+    result.sqlTables?.push({
       name: tableName,
-      columns,
-      file: relativePath,
-      line: lineNumber,
+      columns: extractColumnsFromDefinition(match[2]),
+      file: filePath,
+      line: getLineNumber(content, match.index ?? 0),
     });
   }
 
-  // Handle CREATE VIEW
-  if (n.type === 'create' && n.keyword === 'view') {
-    const viewRaw = (node as { view?: unknown }).view;
-    const viewName =
-      typeof viewRaw === 'string'
-        ? viewRaw
-        : ((viewRaw as { view?: unknown }).view as string | undefined) || 'unknown';
-
-    sqlViews.push({
-      name: viewName,
-      file: relativePath,
-      line: lineNumber,
+  const viewRegex = /CREATE\s+(?:OR\s+REPLACE\s+)?VIEW\s+([^\s]+)\s+AS/gim;
+  for (const match of content.matchAll(viewRegex)) {
+    result.sqlViews?.push({
+      name: normalizeIdentifier(match[1]),
+      file: filePath,
+      line: getLineNumber(content, match.index ?? 0),
     });
   }
+
+  const procedureRegex =
+    /CREATE\s+(?:OR\s+ALTER\s+)?(?:PROCEDURE|PROC)\s+([^\s(]+)([\s\S]*?)(?:\bAS\b|\bBEGIN\b)/gim;
+  for (const match of content.matchAll(procedureRegex)) {
+    const body = match[0];
+    const startIndex = match.index ?? 0;
+    result.functions.push({
+      name: normalizeIdentifier(match[1]),
+      type: 'stored_procedure',
+      params: extractParamNames(body),
+      startLine: getLineNumber(content, startIndex),
+      endLine: getLineNumber(content, startIndex + body.length),
+      file: filePath,
+    });
+  }
+
+  const functionRegex =
+    /CREATE\s+(?:OR\s+REPLACE\s+|OR\s+ALTER\s+)?FUNCTION\s+([^\s(]+)\s*\(([^)]*)\)\s*RETURNS\s+([^\s]+(?:\([^)]*\))?)/gim;
+  for (const match of content.matchAll(functionRegex)) {
+    const body = match[0];
+    const startIndex = match.index ?? 0;
+    result.functions.push({
+      name: normalizeIdentifier(match[1]),
+      type: 'sql_function',
+      params: extractParamNames(match[2]),
+      startLine: getLineNumber(content, startIndex),
+      endLine: getLineNumber(content, startIndex + body.length),
+      file: filePath,
+      returnType: match[3].trim(),
+    });
+  }
+
+  const triggerRegex =
+    /CREATE\s+(?:OR\s+REPLACE\s+)?TRIGGER\s+([^\s]+)\s+(?:BEFORE|AFTER|INSTEAD\s+OF)\s+((?:INSERT|UPDATE|DELETE)(?:\s+OR\s+(?:INSERT|UPDATE|DELETE))*)\s+ON\s+([^\s(]+)/gim;
+  for (const match of content.matchAll(triggerRegex)) {
+    const events = match[2].split(/\s+OR\s+/i).map((value) => value.trim().toUpperCase());
+    for (const event of events) {
+      result.sqlTriggers?.push({
+        name: normalizeIdentifier(match[1]),
+        event: event as SqlTriggerInfo['event'],
+        table: normalizeIdentifier(match[3]),
+        file: filePath,
+        line: getLineNumber(content, match.index ?? 0),
+      });
+    }
+  }
+
+  const indexRegex = /CREATE\s+(UNIQUE\s+)?INDEX\s+([^\s]+)\s+ON\s+([^\s(]+)\s*\(([^)]+)\)/gim;
+  for (const match of content.matchAll(indexRegex)) {
+    result.sqlIndexes?.push({
+      name: normalizeIdentifier(match[2]),
+      table: normalizeIdentifier(match[3]),
+      columns: match[4].split(',').map((value) => normalizeIdentifier(value)),
+      isUnique: Boolean(match[1]?.trim()),
+      file: filePath,
+      line: getLineNumber(content, match.index ?? 0),
+    });
+  }
+
+  return result;
 }
