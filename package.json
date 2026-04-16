@@ -43,7 +43,6 @@
     "publish:npm:dry-run": "npm publish --dry-run",
     "publish:npm": "npm publish",
     "publish:check": "pnpm lint && pnpm build && pnpm test && pnpm run pack:dry-run",
-    "prepare": "npm run build",
     "lint": "eslint . --ext .ts,.tsx,.js,.jsx",
     "lint:fix": "eslint . --ext .ts,.tsx,.js,.jsx --fix",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
@@ -68,10 +67,12 @@
     "iconv-lite": "^0.7.2",
     "node-sql-parser": "^5.4.0",
     "simple-git": "^3.35.2",
-    "tree-sitter": "^0.25.0",
-    "tree-sitter-c-sharp": "^0.23.1",
     "typescript": "^6.0.2",
     "zod": "^4.3.6"
+  },
+  "optionalDependencies": {
+    "tree-sitter": "^0.25.0",
+    "tree-sitter-c-sharp": "^0.23.1"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
