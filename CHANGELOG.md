@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.1.13](https://github.com/jaccoklouwer/ast-indexer/compare/v0.1.12...v0.1.13) (2026-04-16)
+
+
+### Features
+
+* 🎸 herbouw MCP server met cache, SQL triggers/indexes en M ([7c8f123](https://github.com/jaccoklouwer/ast-indexer/commit/7c8f123b327b7e43acb98b8992020d01bb021273))
+
 ### [0.1.12](https://github.com/jaccoklouwer/ast-indexer/compare/v0.1.11...v0.1.12) (2026-04-16)
 
 
