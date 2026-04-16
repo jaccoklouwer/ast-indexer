@@ -117,19 +117,20 @@ Tools defined in [src/index.ts](../src/index.ts) follow this pattern:
 
 ## Commit En Release
 
-Gebruik voor commits en releases in deze repo de workflow uit:
+> ⚠️ **Verplicht**: Gebruik altijd de pnpm scripts — nooit rechtstreeks `git commit` of `git push`.
 
-- [.github/git-release.instructions.md](./git-release.instructions.md)
+```bash
+pnpm commit              # interactief committen via git-cz
+pnpm run publish:check   # lint + build + test + pack validatie
+pnpm release             # standard-version: versie bump + CHANGELOG + tag
+pnpm push                # git push --follow-tags origin
+```
 
-Standaard commando's:
+Workflow voor releases:
 
-- `pnpm commit`
-- `pnpm release`
-- `pnpm run publish:check`
-- `pnpm push`
+1. `pnpm run publish:check` — valideer alles
+2. `pnpm release` — bump versie, update CHANGELOG, maak git tag
+3. `pnpm push` — push commits + tags → triggert GitHub Actions publish
+4. Keur `npm-publish` environment goed in GitHub Actions
 
-Standaard releasepad:
-
-- lokaal: `pnpm run publish:check`, `pnpm release`, `pnpm push`
-- daarna: GitHub Actions `publish.yml` voor npm publish na environment approval
-- alleen als noodpad: `pnpm run publish:npm`
+Alleen als noodpad (niet aanbevolen): `pnpm run publish:npm`
