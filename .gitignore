@@ -5,6 +5,7 @@ coverage/
 *.log
 .env
 .vscode/
+!.vscode/mcp.json
 *.tsbuildinfo
 scripts/*.js
 scripts/*.js.map

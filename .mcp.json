@@ -1,0 +1,9 @@
+{
+  "servers": {
+    "ast-indexer": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@klouwer94/ast-indexer@latest"]
+    }
+  }
+}
