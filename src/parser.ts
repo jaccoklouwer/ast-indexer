@@ -347,20 +347,38 @@ function matchesAnyGlobPattern(filePath: string, patterns: string[]): boolean {
 }
 
 const DEFAULT_INCLUDE_PATTERNS = ['**/*'];
+// Sluit zowel de map zelf (bijv. "infrastructure/node_modules") als de inhoud ervan uit.
+// Zonder "**/"-prefix matchen patronen als "node_modules/**" alleen op rootniveau.
 const DEFAULT_EXCLUDE_PATTERNS = [
-  '.git/**',
-  'node_modules/**',
-  'dist/**',
-  'build/**',
+  '**/.git',
+  '**/.git/**',
+  '**/node_modules',
+  '**/node_modules/**',
+  '**/dist',
+  '**/dist/**',
+  '**/build',
+  '**/build/**',
   '**/*.test.*',
   '**/*.spec.*',
   '**/*.Designer.cs',
-  'bin/**',
-  'obj/**',
-  '.vs/**',
-  '.idea/**',
-  '.fleet/**',
+  '**/bin',
+  '**/bin/**',
+  '**/obj',
+  '**/obj/**',
+  '**/.vs',
+  '**/.vs/**',
+  '**/.idea',
+  '**/.idea/**',
+  '**/.fleet',
+  '**/.fleet/**',
+  '**/coverage',
+  '**/coverage/**',
+  '**/.next',
+  '**/.next/**',
+  '**/.nuxt',
+  '**/.nuxt/**',
   '**/*.Generated.cs',
+  '**/Service References',
   '**/Service References/**',
 ];
 
