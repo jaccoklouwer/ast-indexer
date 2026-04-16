@@ -140,15 +140,23 @@ function printHelp(): void {
       '',
       'Opties:',
       '  -h, --help                Toon deze hulptekst en sluit af',
-      '  --http                    Start in HTTP modus (meerdere clients)',
+      '  --http                    Start als persistente HTTP daemon (meerdere clients)',
       `  --port <n>                Poort voor HTTP modus (standaard: ${DEFAULT_HTTP_PORT})`,
       '  --concurrency <n>         Overschrijf aantal parse workers (env: AST_INDEXER_CONCURRENCY)',
       '',
+      'Transportmodi:',
+      '  stdio (standaard)         Pure stdio transport. Disk cache (~/.ast-indexer/cache/)',
+      '                            zorgt voor snelle herstart: indices worden hergebruikt',
+      '                            zolang de git commit hash ongewijzigd is.',
+      '  --http                    Persistente HTTP server op localhost:<port>/mcp.',
+      '                            Geschikt als je een langlopende daemon wil.',
+      '',
       'Omgevingsvariabelen:',
-      '  AST_INDEXER_CONCURRENCY  Aantal workers tijdens indexeren (standaard: min(8, cpu cores))',
-      '  AST_INDEXER_MAX_FILES  Maximum aantal parseerbare bestanden per index run (standaard: 10000)',
-      '  AST_INDEXER_MAX_PARSE_FAILURES  Maximaal aantal parse-fouten voordat indexeren stopt (standaard: 25)',
-      '  AST_INDEXER_MAX_REQUEST_BYTES  Maximum grootte van een HTTP request body in bytes (standaard: 1048576)',
+      '  AST_INDEXER_CONCURRENCY          Aantal workers tijdens indexeren (standaard: min(8, cpu cores))',
+      '  AST_INDEXER_MAX_FILES            Maximum aantal parseerbare bestanden per index run (standaard: 10000)',
+      '  AST_INDEXER_MAX_PARSE_FAILURES   Maximaal aantal parse-fouten voordat indexeren stopt (standaard: 25)',
+      '  AST_INDEXER_MAX_REQUEST_BYTES    Maximum grootte van een HTTP request body in bytes (standaard: 1048576)',
+      '  AST_INDEXER_HTTP_PORT            Poort voor HTTP modus (standaard: 3847)',
       '',
       'Beschrijving:',
       '  Deze server biedt MCP tools voor het indexeren van Git repositories met AST parsing',
@@ -432,6 +440,7 @@ export function createMcpServer(): McpServer {
 /**
  * Haal de HTTP-poort op uit CLI-args, env-variabele, of gebruik de default (3847).
  * Volgorde: CLI --port > AST_INDEXER_HTTP_PORT > 3847
+ * Alleen relevant in --http modus.
  */
 function resolveHttpPort(args: string[]): number {
   const portArgIdx = args.findIndex((a) => a === '--port');
@@ -538,24 +547,14 @@ async function main() {
     return;
   }
 
-  const httpPort = resolveHttpPort(args);
-
   if (args.includes('--http')) {
-    // Expliciete HTTP-only modus: alleen HTTP server starten
+    // Expliciete HTTP-only modus: persistente server voor meerdere clients
+    const httpPort = resolveHttpPort(args);
     await startHttpServer(httpPort);
   } else {
-    // Stdio modus: verbind stdio transport én start HTTP server in hetzelfde proces.
-    // Alle clients (stdio + HTTP) delen zo dezelfde in-memory cache.
-    // Als de poort al bezet is, draait er al een instantie — geen actie nodig.
+    // Stdio modus: pure stdio transport — disk cache zorgt voor cross-sessie persistentie
     const transport = new StdioServerTransport();
     await createMcpServer().connect(transport);
-
-    await startHttpServer(httpPort).catch((err: NodeJS.ErrnoException) => {
-      if (err.code !== 'EADDRINUSE') {
-        console.error('HTTP server fout:', err.message);
-      }
-    });
-
     console.error('AST-Indexer MCP Server gestart');
   }
 }

@@ -57,7 +57,24 @@ pnpm build
 }
 ```
 
-## MCP Tools
+## Transport Modes
+
+### stdio (default)
+
+The server runs in stdio mode by default. The MCP client spawns the process at session start and communicates over stdin/stdout.
+
+**Disk cache**: Parsed results are stored in `~/.ast-indexer/cache/` as gzip-compressed JSON, keyed by the repository path and git commit hash. When you call `index_repository` again in a new session with the same commit, the cache is loaded from disk instantly — no re-parsing needed. The cache is automatically invalidated when the commit hash changes.
+
+### HTTP daemon mode
+
+Pass `--http` to start a persistent HTTP server instead:
+
+```bash
+node /path/to/dist/index.js --http --port 3847
+```
+
+This keeps a single long-running process with a shared in-memory cache. Useful if multiple clients connect simultaneously.
+
 
 ### `index_repository`
 
@@ -90,7 +107,7 @@ Relevant environment variables:
 - `AST_INDEXER_CONCURRENCY`: Override the number of parse workers.
 - `AST_INDEXER_MAX_FILES`: Maximum number of parseable files per indexing run. Default: `10000`.
 - `AST_INDEXER_MAX_PARSE_FAILURES`: Maximum parse failures before indexing aborts. Default: `25`.
-- `AST_INDEXER_MAX_REQUEST_BYTES`: Maximum HTTP request body size in bytes. Default: `1048576`.
+- `AST_INDEXER_MAX_REQUEST_BYTES`: Maximum HTTP request body size in bytes (HTTP mode only). Default: `1048576`.
 
 ### `search_functions`
 
