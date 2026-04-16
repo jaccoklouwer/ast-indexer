@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import * as crypto from 'node:crypto';
+import * as fs from 'node:fs';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
@@ -561,7 +562,16 @@ async function main() {
 
 function isDirectExecution(): boolean {
   const entryPoint = process.argv[1];
-  return Boolean(entryPoint) && fileURLToPath(import.meta.url) === path.resolve(entryPoint);
+  if (!entryPoint) return false;
+  try {
+    // Gebruik realpathSync om symlinks op te lossen (bijv. nvm nodejs symlink)
+    // zodat de vergelijking werkt ongeacht hoe node is geïnstalleerd
+    const realEntry = fs.realpathSync(path.resolve(entryPoint));
+    const realMeta = fs.realpathSync(fileURLToPath(import.meta.url));
+    return realEntry === realMeta;
+  } catch {
+    return fileURLToPath(import.meta.url) === path.resolve(entryPoint);
+  }
 }
 
 if (isDirectExecution()) {
