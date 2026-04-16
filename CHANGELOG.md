@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.1.11](https://github.com/jaccoklouwer/ast-indexer/compare/v0.1.10...v0.1.11) (2026-04-16)
+
+
+### Bug Fixes
+
+* **index:** los symlink-pad mismatch op in isDirectExecution ([2711672](https://github.com/jaccoklouwer/ast-indexer/commit/2711672e3262cc0bb7a783385b3342b6a1e59644))
+
 ### [0.1.10](https://github.com/jaccoklouwer/ast-indexer/compare/v0.1.9...v0.1.10) (2026-04-16)
 
 ### [0.1.9](https://github.com/jaccoklouwer/ast-indexer/compare/v0.1.8...v0.1.9) (2026-04-16)
