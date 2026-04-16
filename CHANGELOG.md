@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.1.12](https://github.com/jaccoklouwer/ast-indexer/compare/v0.1.11...v0.1.12) (2026-04-16)
+
+
+### Bug Fixes
+
+* **parser:** exclude geneste node_modules en build-mappen op alle dieptes ([ff90d1b](https://github.com/jaccoklouwer/ast-indexer/commit/ff90d1ba9e24ce15b460674907fdbab87999f07b))
+
 ### [0.1.11](https://github.com/jaccoklouwer/ast-indexer/compare/v0.1.10...v0.1.11) (2026-04-16)
 
 
