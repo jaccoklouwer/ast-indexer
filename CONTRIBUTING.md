@@ -28,7 +28,21 @@ Use `pnpm run test:watch` or `pnpm run test:ui` if you are iterating on parser b
 
 ## Commits
 
-This repository uses Conventional Commits. Use a commit message that clearly describes the scope of the change.
+This repository uses Conventional Commits. Always commit using:
+
+```bash
+pnpm commit
+```
+
+This runs `git-cz` for interactive conventional commit message generation. Do not use `git commit` directly.
+
+## Releasing
+
+```bash
+pnpm run publish:check   # lint + build + test + pack validation
+pnpm release             # version bump, CHANGELOG update, git tag
+pnpm push                # push commits and tags; triggers GitHub Actions publish
+```
 
 ## Large Changes
 

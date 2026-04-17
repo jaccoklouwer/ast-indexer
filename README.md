@@ -24,22 +24,23 @@ Add it to your MCP client configuration:
 }
 ```
 
-For local build and `npx` variants, see [docs/usage.md](docs/usage.md).
+For `npx` usage and HTTP transport configuration, see [docs/usage.md](docs/usage.md).
 
 ## Features
 
 - Index Git repositories with include and exclude glob patterns.
 - Parse JavaScript and TypeScript, including `.js`, `.jsx`, `.mjs`, `.cjs`, `.ts`, `.tsx`, `.mts`, and `.cts`.
-- Parse C# with Tree-sitter and SQL with `node-sql-parser`.
-- Search indexed repositories for functions, classes, imports, SQL tables, and SQL views.
+- Parse C# using regex-based extraction (classes, methods, properties, using directives, UTF-16 encoding support).
+- Parse SQL using regex-based extraction (tables, views, stored procedures, functions, triggers, and indexes).
+- Search indexed repositories for functions, classes, imports, SQL tables, SQL views, SQL triggers, and SQL indexes.
 - Return repository-level statistics for indexed files and extracted symbols.
-- Cache indexes by repository state to avoid unnecessary reprocessing.
-- Fail fast on oversized or unstable indexing runs instead of letting the MCP server stop unexpectedly.
+- Two-layer cache: per-file memory cache backed by a disk cache keyed on Git commit hash or file mtime.
+- Supports both `stdio` (default) and HTTP (`--transport http`) transport modes.
 - Built with TypeScript, Zod, and Vitest.
 
 ### Using the MCP server
 
-See [docs/usage.md](docs/usage.md) for tool reference, configuration examples, and pattern behavior.
+See [docs/usage.md](docs/usage.md) for the full tool reference, CLI flags, configuration examples, and glob pattern behavior.
 
 If you want to understand how the codebase is structured, see [docs/project-architecture.md](docs/project-architecture.md).
 
