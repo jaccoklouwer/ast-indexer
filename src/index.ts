@@ -1,25 +1,16 @@
 #!/usr/bin/env node
 
-import * as http from 'node:http';
-import * as path from 'node:path';
-import { createRequire } from 'node:module';
-import { fileURLToPath } from 'node:url';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
-import { z } from 'zod';
+import * as http from 'node:http';
+import { createRequire } from 'node:module';
+import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { RepositoryIndexer } from './indexer.js';
-import {
-  IndexRepositoryArgsSchema,
-  SearchClassesArgsSchema,
-  SearchFunctionsArgsSchema,
-  SearchImportsArgsSchema,
-  SearchSqlIndexesArgsSchema,
-  SearchSqlTablesArgsSchema,
-  SearchSqlTriggersArgsSchema,
-  SearchSqlViewsArgsSchema,
-} from './schemas.js';
+import { TreeSitterEngine } from './tree-sitter-engine.js';
+import { createCommonToolDefinitions } from './tool-registry.js';
 
 const require = createRequire(import.meta.url);
 const packageMetadata = require('../package.json') as {
@@ -34,17 +25,7 @@ const DEFAULT_TRANSPORT = 'stdio';
 const DEFAULT_HTTP_PORT = 3847;
 const JSON_HEADERS = { 'Content-Type': 'application/json' };
 const sharedIndexer = new RepositoryIndexer();
-
-const GetStatisticsArgsSchema = z.object({
-  repositoryPath: z.string().describe('Pad naar geindexeerde repository'),
-});
-
-const ClearCacheArgsSchema = z.object({
-  repositoryPath: z
-    .string()
-    .optional()
-    .describe('Pad naar repository waarvan cache gewist moet worden'),
-});
+const sharedTreeSitterEngine = new TreeSitterEngine();
 
 type TransportType = 'stdio' | 'http';
 
@@ -56,38 +37,6 @@ interface CliOptions {
 interface RequestBodyResult {
   body: unknown;
   hasInvalidJson: boolean;
-}
-
-function createToolResponse<T extends Record<string, unknown>>(
-  payload: T,
-): {
-  content: Array<{ type: 'text'; text: string }>;
-  structuredContent: T;
-} {
-  return {
-    content: [
-      {
-        type: 'text',
-        text: JSON.stringify(payload, null, 2),
-      },
-    ],
-    structuredContent: payload,
-  };
-}
-
-function createToolErrorResponse(error: unknown): {
-  isError: true;
-  content: Array<{ type: 'text'; text: string }>;
-} {
-  return {
-    isError: true,
-    content: [
-      {
-        type: 'text',
-        text: `Fout: ${error instanceof Error ? error.message : String(error)}`,
-      },
-    ],
-  };
 }
 
 function parseCliOptions(argv: string[]): CliOptions {
@@ -212,236 +161,20 @@ async function readRequestBody(request: http.IncomingMessage): Promise<RequestBo
 }
 
 function registerCommonTools(server: McpServer, indexer: RepositoryIndexer): void {
-  server.registerTool(
-    'index_repository',
-    {
-      title: 'Index Repository',
-      description: 'Indexeer een Git repository en cache parse-resultaten per bestand.',
-      inputSchema: IndexRepositoryArgsSchema,
-    },
-    async (args) => {
-      try {
-        const validatedArgs = IndexRepositoryArgsSchema.parse(args);
-        const index = await indexer.indexRepository(
-          validatedArgs.repositoryPath,
-          validatedArgs.includePatterns,
-          validatedArgs.excludePatterns,
-        );
-
-        return createToolResponse({
-          success: true,
-          message: `Repository geindexeerd: ${index.files.length} bestanden`,
-          statistics: indexer.getStatistics(validatedArgs.repositoryPath),
-        });
-      } catch (error) {
-        return createToolErrorResponse(error);
-      }
-    },
-  );
-
-  server.registerTool(
-    'search_functions',
-    {
-      title: 'Search Functions',
-      description: 'Zoek functies in een geindexeerde repository.',
-      inputSchema: SearchFunctionsArgsSchema,
-    },
-    async (args) => {
-      try {
-        const validatedArgs = SearchFunctionsArgsSchema.parse(args);
-        const results = indexer.searchFunctions(
-          validatedArgs.repositoryPath,
-          validatedArgs.functionName,
-          validatedArgs.fileName,
-          validatedArgs.caseInsensitive,
-        );
-        return createToolResponse({ success: true, count: results.length, functions: results });
-      } catch (error) {
-        return createToolErrorResponse(error);
-      }
-    },
-  );
-
-  server.registerTool(
-    'search_classes',
-    {
-      title: 'Search Classes',
-      description: 'Zoek classes in een geindexeerde repository.',
-      inputSchema: SearchClassesArgsSchema,
-    },
-    async (args) => {
-      try {
-        const validatedArgs = SearchClassesArgsSchema.parse(args);
-        const results = indexer.searchClasses(
-          validatedArgs.repositoryPath,
-          validatedArgs.className,
-          validatedArgs.fileName,
-          validatedArgs.caseInsensitive,
-        );
-        return createToolResponse({ success: true, count: results.length, classes: results });
-      } catch (error) {
-        return createToolErrorResponse(error);
-      }
-    },
-  );
-
-  server.registerTool(
-    'search_imports',
-    {
-      title: 'Search Imports',
-      description: 'Zoek imports in een geindexeerde repository.',
-      inputSchema: SearchImportsArgsSchema,
-    },
-    async (args) => {
-      try {
-        const validatedArgs = SearchImportsArgsSchema.parse(args);
-        const results = indexer.searchImports(
-          validatedArgs.repositoryPath,
-          validatedArgs.moduleName,
-          validatedArgs.fileName,
-          validatedArgs.caseInsensitive,
-        );
-        return createToolResponse({ success: true, count: results.length, imports: results });
-      } catch (error) {
-        return createToolErrorResponse(error);
-      }
-    },
-  );
-
-  server.registerTool(
-    'get_statistics',
-    {
-      title: 'Get Statistics',
-      description: 'Haal statistieken op van een geindexeerde repository.',
-      inputSchema: GetStatisticsArgsSchema,
-    },
-    async (args) => {
-      try {
-        const validatedArgs = GetStatisticsArgsSchema.parse(args);
-        return createToolResponse({
-          success: true,
-          statistics: indexer.getStatistics(validatedArgs.repositoryPath),
-        });
-      } catch (error) {
-        return createToolErrorResponse(error);
-      }
-    },
-  );
-
-  server.registerTool(
-    'search_sql_tables',
-    {
-      title: 'Search SQL Tables',
-      description: 'Zoek SQL tables in een geindexeerde repository.',
-      inputSchema: SearchSqlTablesArgsSchema,
-    },
-    async (args) => {
-      try {
-        const validatedArgs = SearchSqlTablesArgsSchema.parse(args);
-        const results = indexer.searchSqlTables(
-          validatedArgs.repositoryPath,
-          validatedArgs.tableName,
-          validatedArgs.fileName,
-          validatedArgs.caseInsensitive,
-        );
-        return createToolResponse({ success: true, count: results.length, tables: results });
-      } catch (error) {
-        return createToolErrorResponse(error);
-      }
-    },
-  );
-
-  server.registerTool(
-    'search_sql_views',
-    {
-      title: 'Search SQL Views',
-      description: 'Zoek SQL views in een geindexeerde repository.',
-      inputSchema: SearchSqlViewsArgsSchema,
-    },
-    async (args) => {
-      try {
-        const validatedArgs = SearchSqlViewsArgsSchema.parse(args);
-        const results = indexer.searchSqlViews(
-          validatedArgs.repositoryPath,
-          validatedArgs.viewName,
-          validatedArgs.fileName,
-          validatedArgs.caseInsensitive,
-        );
-        return createToolResponse({ success: true, count: results.length, views: results });
-      } catch (error) {
-        return createToolErrorResponse(error);
-      }
-    },
-  );
-
-  server.registerTool(
-    'search_sql_triggers',
-    {
-      title: 'Search SQL Triggers',
-      description: 'Zoek SQL triggers in een geindexeerde repository.',
-      inputSchema: SearchSqlTriggersArgsSchema,
-    },
-    async (args) => {
-      try {
-        const validatedArgs = SearchSqlTriggersArgsSchema.parse(args);
-        const results = indexer.searchSqlTriggers(
-          validatedArgs.repositoryPath,
-          validatedArgs.triggerName,
-          validatedArgs.fileName,
-          validatedArgs.caseInsensitive,
-        );
-        return createToolResponse({ success: true, count: results.length, triggers: results });
-      } catch (error) {
-        return createToolErrorResponse(error);
-      }
-    },
-  );
-
-  server.registerTool(
-    'search_sql_indexes',
-    {
-      title: 'Search SQL Indexes',
-      description: 'Zoek SQL indexes in een geindexeerde repository.',
-      inputSchema: SearchSqlIndexesArgsSchema,
-    },
-    async (args) => {
-      try {
-        const validatedArgs = SearchSqlIndexesArgsSchema.parse(args);
-        const results = indexer.searchSqlIndexes(
-          validatedArgs.repositoryPath,
-          validatedArgs.indexName,
-          validatedArgs.fileName,
-          validatedArgs.caseInsensitive,
-        );
-        return createToolResponse({ success: true, count: results.length, indexes: results });
-      } catch (error) {
-        return createToolErrorResponse(error);
-      }
-    },
-  );
-
-  server.registerTool(
-    'clear_cache',
-    {
-      title: 'Clear Cache',
-      description: 'Wis de memory- en disk-cache van een repository of van alle repositories.',
-      inputSchema: ClearCacheArgsSchema,
-    },
-    async (args) => {
-      try {
-        const validatedArgs = ClearCacheArgsSchema.parse(args);
-        await indexer.clearCache(validatedArgs.repositoryPath);
-        return createToolResponse({
-          success: true,
-          message: validatedArgs.repositoryPath
-            ? `Cache gewist voor ${validatedArgs.repositoryPath}`
-            : 'Alle cache gewist',
-        });
-      } catch (error) {
-        return createToolErrorResponse(error);
-      }
-    },
-  );
+  for (const tool of createCommonToolDefinitions({
+    indexer,
+    treeSitterEngine: sharedTreeSitterEngine,
+  })) {
+    server.registerTool(
+      tool.name,
+      {
+        title: tool.title,
+        description: tool.description,
+        inputSchema: tool.inputSchema,
+      },
+      tool.handler,
+    );
+  }
 }
 
 export function createMcpServer(): McpServer {

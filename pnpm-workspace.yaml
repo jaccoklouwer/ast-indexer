@@ -10,4 +10,3 @@ allowBuilds:
   tree-sitter-javascript: true
   tree-sitter-sql: true
   tree-sitter-typescript: true
-

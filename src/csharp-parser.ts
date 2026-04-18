@@ -1,6 +1,13 @@
 import * as fs from 'node:fs/promises';
 import iconv from 'iconv-lite';
-import type { ClassInfo, FileIndex, FunctionInfo, ImportInfo, VariableInfo } from './schemas.js';
+import type {
+  ClassInfo,
+  ExportInfo,
+  FileIndex,
+  FunctionInfo,
+  ImportInfo,
+  VariableInfo,
+} from './schemas.js';
 
 function decodeContent(raw: Buffer): string {
   if (raw.length >= 2 && raw[0] === 0xff && raw[1] === 0xfe) {
@@ -67,8 +74,13 @@ export async function parseCSharpFile(filePath: string): Promise<FileIndex> {
   const imports: ImportInfo[] = [];
   const variables: VariableInfo[] = [];
   const exports: string[] = [];
+  const exportDetails: ExportInfo[] = [];
   const namespaceMatch = content.match(/namespace\s+([\w.]+)/);
   const namespaceName = namespaceMatch?.[1];
+  const recordExport = (name: string, line: number): void => {
+    exports.push(name);
+    exportDetails.push({ name, line });
+  };
 
   for (const match of content.matchAll(/^\s*using\s+([\w.]+)\s*;/gm)) {
     imports.push({
@@ -82,11 +94,11 @@ export async function parseCSharpFile(filePath: string): Promise<FileIndex> {
   }
 
   const classRegex =
-    /((?:public|internal|protected|private|abstract|sealed|static)\s+)*(class|interface)\s+(\w+)(?:\s*:\s*([^{]+))?\s*{/g;
+    /((?:(?:public|internal|protected|private|abstract|sealed|static)\s+)*)(class|interface)\s+(\w+)(?:\s*:\s*([^{]+))?\s*{/g;
   const methodRegex =
-    /((?:public|internal|protected|private|static|async|virtual|override|sealed|partial|extern|unsafe|new)\s+)*(?:[^\s(]+\s+)+(\w+)\s*\(([^)]*)\)\s*{/g;
+    /((?:(?:public|internal|protected|private|static|async|virtual|override|sealed|partial|extern|unsafe|new)\s+)*)(?:[^\s(]+\s+)+(\w+)\s*\(([^)]*)\)\s*{/g;
   const propertyRegex =
-    /((?:public|internal|protected|private|static)\s+)*(?:[^\s(]+\s+)+(\w+)\s*{\s*(?:get|set)/g;
+    /((?:(?:public|internal|protected|private|static)\s+)*)(?:[^\s(]+\s+)+(\w+)\s*{\s*(?:get|set)/g;
 
   for (const match of content.matchAll(classRegex)) {
     const className = match[3];
@@ -125,7 +137,7 @@ export async function parseCSharpFile(filePath: string): Promise<FileIndex> {
     });
 
     if (modifiers.includes('public')) {
-      exports.push(className);
+      recordExport(className, getLineNumber(content, match.index ?? 0));
     }
   }
 
@@ -156,6 +168,7 @@ export async function parseCSharpFile(filePath: string): Promise<FileIndex> {
     imports,
     variables,
     exports,
+    exportDetails,
     language: 'csharp',
   };
 }

@@ -49,6 +49,13 @@ describe('Parser', () => {
     expect(result.classes[0]?.methods).toContain('increment');
     expect(result.imports).toHaveLength(2);
     expect(result.exports).toEqual(expect.arrayContaining(['add', 'Counter', 'multiply']));
+    expect(result.exportDetails).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: 'add', line: 3 }),
+        expect.objectContaining({ name: 'Counter', line: 4 }),
+        expect.objectContaining({ name: 'multiply', line: 8 }),
+      ]),
+    );
   });
 
   it('parseert TypeScript bestanden', async () => {

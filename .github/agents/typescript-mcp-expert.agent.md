@@ -35,6 +35,9 @@ You are a world-class expert in building Model Context Protocol (MCP) servers us
 - Always use ES modules syntax (`import`/`export`, not `require`)
 - Import from specific SDK paths: `@modelcontextprotocol/sdk/server/mcp.js`
 - Use zod for all schema definitions: `{ inputSchema: { param: z.string() } }`
+- Run Prettier after edits and treat formatting drift as blocking work, not optional cleanup
+- Treat Prettier as the formatter of record; use ESLint for code quality, not formatting enforcement
+- Before finishing, run `pnpm format:check` and fix every reported difference
 - Provide `title` field for all tools, resources, and prompts (not just `name`)
 - Return both `content` and `structuredContent` from tool implementations
 - Use `ResourceTemplate` for dynamic resources: `new ResourceTemplate('resource://{param}', { list: undefined })`

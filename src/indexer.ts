@@ -142,7 +142,7 @@ export class RepositoryIndexer {
     return this.cache.get(repositoryPath);
   }
 
-  private getRequiredIndex(repositoryPath: string): RepositoryIndex {
+  getRequiredIndex(repositoryPath: string): RepositoryIndex {
     const index = this.cache.get(repositoryPath);
     if (!index) {
       throw new Error(`Repository ${repositoryPath} is niet geïndexeerd`);
@@ -261,6 +261,67 @@ export class RepositoryIndexer {
             .map((item) => ({ ...item, fullPath: file.path }))
         : [],
     );
+  }
+
+  getCrossFileReferences(
+    repositoryPath: string,
+    symbolName: string,
+    caseInsensitive?: boolean,
+  ): Array<{ filePath: string; kind: 'import' | 'export' | 'definition'; line: number }> {
+    const index = this.getRequiredIndex(repositoryPath);
+    const results: Array<{
+      filePath: string;
+      kind: 'import' | 'export' | 'definition';
+      line: number;
+    }> = [];
+
+    for (const file of index.files) {
+      for (const item of file.imports) {
+        if (
+          item.imported.some((importName) => applyMatch(importName, symbolName, caseInsensitive)) ||
+          applyMatch(item.source, symbolName, caseInsensitive)
+        ) {
+          results.push({
+            filePath: file.path,
+            kind: 'import',
+            line: item.line,
+          });
+        }
+      }
+
+      const exportEntries = file.exportDetails ?? file.exports.map((name) => ({ name, line: 1 }));
+      for (const exportedSymbol of exportEntries) {
+        if (applyMatch(exportedSymbol.name, symbolName, caseInsensitive)) {
+          results.push({
+            filePath: file.path,
+            kind: 'export',
+            line: exportedSymbol.line,
+          });
+        }
+      }
+
+      for (const fn of file.functions) {
+        if (applyMatch(fn.name, symbolName, caseInsensitive)) {
+          results.push({
+            filePath: file.path,
+            kind: 'definition',
+            line: fn.startLine,
+          });
+        }
+      }
+
+      for (const cls of file.classes) {
+        if (applyMatch(cls.name, symbolName, caseInsensitive)) {
+          results.push({
+            filePath: file.path,
+            kind: 'definition',
+            line: cls.startLine,
+          });
+        }
+      }
+    }
+
+    return results;
   }
 
   getStatistics(repositoryPath: string): Statistics {

@@ -20,12 +20,12 @@ The HTTP server listens on port `3847` by default and exposes a single endpoint 
 
 ### CLI flags
 
-| Flag | Description |
-|---|---|
-| `--transport stdio\|http` | Choose the transport (default: `stdio`) |
-| `--http` | Shortcut for `--transport http` |
-| `--port <number>` | Port for HTTP transport (default: `3847`) |
-| `-h`, `--help` | Print help and exit |
+| Flag                      | Description                               |
+| ------------------------- | ----------------------------------------- |
+| `--transport stdio\|http` | Choose the transport (default: `stdio`)   |
+| `--http`                  | Shortcut for `--transport http`           |
+| `--port <number>`         | Port for HTTP transport (default: `3847`) |
+| `-h`, `--help`            | Print help and exit                       |
 
 ## MCP client configuration
 
@@ -94,11 +94,11 @@ Call `index_repository` first before using any search tool. The index is cached 
 
 Index a Git repository and cache parse results per file.
 
-| Parameter | Type | Required | Description |
-|---|---|---|---|
-| `repositoryPath` | string | ✓ | Absolute path to the Git repository |
-| `includePatterns` | string[] | | Glob patterns for files to include |
-| `excludePatterns` | string[] | | Glob patterns for files to exclude |
+| Parameter         | Type     | Required | Description                         |
+| ----------------- | -------- | -------- | ----------------------------------- |
+| `repositoryPath`  | string   | ✓        | Absolute path to the Git repository |
+| `includePatterns` | string[] |          | Glob patterns for files to include  |
+| `excludePatterns` | string[] |          | Glob patterns for files to exclude  |
 
 ---
 
@@ -106,12 +106,12 @@ Index a Git repository and cache parse results per file.
 
 Search for functions, methods, arrow functions, async functions, stored procedures, and SQL functions.
 
-| Parameter | Type | Required | Description |
-|---|---|---|---|
-| `repositoryPath` | string | ✓ | Path to indexed repository |
-| `functionName` | string | | Name to search for (substring match) |
-| `fileName` | string | | File path filter (substring match) |
-| `caseInsensitive` | boolean | | Case-insensitive matching (default: `false`) |
+| Parameter         | Type    | Required | Description                                  |
+| ----------------- | ------- | -------- | -------------------------------------------- |
+| `repositoryPath`  | string  | ✓        | Path to indexed repository                   |
+| `functionName`    | string  |          | Name to search for (substring match)         |
+| `fileName`        | string  |          | File path filter (substring match)           |
+| `caseInsensitive` | boolean |          | Case-insensitive matching (default: `false`) |
 
 ---
 
@@ -119,12 +119,12 @@ Search for functions, methods, arrow functions, async functions, stored procedur
 
 Search for classes and interfaces.
 
-| Parameter | Type | Required | Description |
-|---|---|---|---|
-| `repositoryPath` | string | ✓ | Path to indexed repository |
-| `className` | string | | Name to search for (substring match) |
-| `fileName` | string | | File path filter |
-| `caseInsensitive` | boolean | | Case-insensitive matching |
+| Parameter         | Type    | Required | Description                          |
+| ----------------- | ------- | -------- | ------------------------------------ |
+| `repositoryPath`  | string  | ✓        | Path to indexed repository           |
+| `className`       | string  |          | Name to search for (substring match) |
+| `fileName`        | string  |          | File path filter                     |
+| `caseInsensitive` | boolean |          | Case-insensitive matching            |
 
 ---
 
@@ -132,12 +132,12 @@ Search for classes and interfaces.
 
 Search for import statements and C# `using` directives.
 
-| Parameter | Type | Required | Description |
-|---|---|---|---|
-| `repositoryPath` | string | ✓ | Path to indexed repository |
-| `moduleName` | string | | Module or namespace to search for |
-| `fileName` | string | | File path filter |
-| `caseInsensitive` | boolean | | Case-insensitive matching |
+| Parameter         | Type    | Required | Description                       |
+| ----------------- | ------- | -------- | --------------------------------- |
+| `repositoryPath`  | string  | ✓        | Path to indexed repository        |
+| `moduleName`      | string  |          | Module or namespace to search for |
+| `fileName`        | string  |          | File path filter                  |
+| `caseInsensitive` | boolean |          | Case-insensitive matching         |
 
 ---
 
@@ -145,12 +145,12 @@ Search for import statements and C# `using` directives.
 
 Search for SQL `CREATE TABLE` definitions.
 
-| Parameter | Type | Required | Description |
-|---|---|---|---|
-| `repositoryPath` | string | ✓ | Path to indexed repository |
-| `tableName` | string | | Table name to search for |
-| `fileName` | string | | File path filter |
-| `caseInsensitive` | boolean | | Case-insensitive matching |
+| Parameter         | Type    | Required | Description                |
+| ----------------- | ------- | -------- | -------------------------- |
+| `repositoryPath`  | string  | ✓        | Path to indexed repository |
+| `tableName`       | string  |          | Table name to search for   |
+| `fileName`        | string  |          | File path filter           |
+| `caseInsensitive` | boolean |          | Case-insensitive matching  |
 
 ---
 
@@ -158,12 +158,12 @@ Search for SQL `CREATE TABLE` definitions.
 
 Search for SQL `CREATE VIEW` definitions.
 
-| Parameter | Type | Required | Description |
-|---|---|---|---|
-| `repositoryPath` | string | ✓ | Path to indexed repository |
-| `viewName` | string | | View name to search for |
-| `fileName` | string | | File path filter |
-| `caseInsensitive` | boolean | | Case-insensitive matching |
+| Parameter         | Type    | Required | Description                |
+| ----------------- | ------- | -------- | -------------------------- |
+| `repositoryPath`  | string  | ✓        | Path to indexed repository |
+| `viewName`        | string  |          | View name to search for    |
+| `fileName`        | string  |          | File path filter           |
+| `caseInsensitive` | boolean |          | Case-insensitive matching  |
 
 ---
 
@@ -171,12 +171,12 @@ Search for SQL `CREATE VIEW` definitions.
 
 Search for SQL `CREATE TRIGGER` definitions.
 
-| Parameter | Type | Required | Description |
-|---|---|---|---|
-| `repositoryPath` | string | ✓ | Path to indexed repository |
-| `triggerName` | string | | Trigger name to search for |
-| `fileName` | string | | File path filter |
-| `caseInsensitive` | boolean | | Case-insensitive matching |
+| Parameter         | Type    | Required | Description                |
+| ----------------- | ------- | -------- | -------------------------- |
+| `repositoryPath`  | string  | ✓        | Path to indexed repository |
+| `triggerName`     | string  |          | Trigger name to search for |
+| `fileName`        | string  |          | File path filter           |
+| `caseInsensitive` | boolean |          | Case-insensitive matching  |
 
 ---
 
@@ -184,12 +184,12 @@ Search for SQL `CREATE TRIGGER` definitions.
 
 Search for SQL `CREATE INDEX` definitions.
 
-| Parameter | Type | Required | Description |
-|---|---|---|---|
-| `repositoryPath` | string | ✓ | Path to indexed repository |
-| `indexName` | string | | Index name to search for |
-| `fileName` | string | | File path filter |
-| `caseInsensitive` | boolean | | Case-insensitive matching |
+| Parameter         | Type    | Required | Description                |
+| ----------------- | ------- | -------- | -------------------------- |
+| `repositoryPath`  | string  | ✓        | Path to indexed repository |
+| `indexName`       | string  |          | Index name to search for   |
+| `fileName`        | string  |          | File path filter           |
+| `caseInsensitive` | boolean |          | Case-insensitive matching  |
 
 ---
 
@@ -197,9 +197,9 @@ Search for SQL `CREATE INDEX` definitions.
 
 Return symbol and file counts for an indexed repository.
 
-| Parameter | Type | Required | Description |
-|---|---|---|---|
-| `repositoryPath` | string | ✓ | Path to indexed repository |
+| Parameter        | Type   | Required | Description                |
+| ---------------- | ------ | -------- | -------------------------- |
+| `repositoryPath` | string | ✓        | Path to indexed repository |
 
 ---
 
@@ -207,9 +207,9 @@ Return symbol and file counts for an indexed repository.
 
 Clear the memory and disk cache for one repository or for all repositories.
 
-| Parameter | Type | Required | Description |
-|---|---|---|---|
-| `repositoryPath` | string | | Repository to clear. Omit to clear all caches |
+| Parameter        | Type   | Required | Description                                   |
+| ---------------- | ------ | -------- | --------------------------------------------- |
+| `repositoryPath` | string |          | Repository to clear. Omit to clear all caches |
 
 ---
 

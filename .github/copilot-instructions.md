@@ -82,6 +82,14 @@ All data structures validated with Zod. When adding fields:
 
 Code comments and tool descriptions are in **Dutch** - maintain this for consistency. User-facing documentation in README is also Dutch.
 
+### Formatting and Validation
+
+- **Prettier is mandatory** for all supported files, including TypeScript, JavaScript, JSON, Markdown, and GitHub workflow YAML.
+- Prettier is the single source of truth for formatting; ESLint is only for code-quality rules.
+- After making edits, run `pnpm format` when you changed multiple files or any Markdown/JSON/YAML; use a targeted Prettier write command only when a smaller scope is clearly better.
+- Before finishing a task, run `pnpm format:check` and do not stop while any Prettier differences remain.
+- Treat Prettier output as a blocking issue, not as optional cleanup.
+
 ## MCP Tool Patterns
 
 Tools defined in [src/index.ts](../src/index.ts) follow this pattern:

@@ -43,6 +43,13 @@ export const ImportSchema = z.object({
 
 export type ImportInfo = z.infer<typeof ImportSchema>;
 
+export const ExportSchema = z.object({
+  name: z.string(),
+  line: z.number(),
+});
+
+export type ExportInfo = z.infer<typeof ExportSchema>;
+
 export const VariableSchema = z.object({
   name: z.string(),
   type: z.enum(['const', 'let', 'var']),
@@ -98,6 +105,7 @@ export const FileIndexSchema = z.object({
   imports: z.array(ImportSchema),
   variables: z.array(VariableSchema),
   exports: z.array(z.string()),
+  exportDetails: z.array(ExportSchema).optional(),
   sqlTables: z.array(SqlTableSchema).optional(),
   sqlViews: z.array(SqlViewSchema).optional(),
   sqlTriggers: z.array(SqlTriggerSchema).optional(),
@@ -167,5 +175,145 @@ export const SearchSqlIndexesArgsSchema = z.object({
   repositoryPath: z.string().describe('Path to indexed repository'),
   indexName: z.string().optional().describe('Index name to search for'),
   fileName: z.string().optional().describe('File name filter'),
+  caseInsensitive: z.boolean().optional().describe('Perform case-insensitive matching'),
+});
+
+export const GetStatisticsArgsSchema = z.object({
+  repositoryPath: z.string().describe('Pad naar geindexeerde repository'),
+});
+
+export const ClearCacheArgsSchema = z.object({
+  repositoryPath: z
+    .string()
+    .optional()
+    .describe('Pad naar repository waarvan cache gewist moet worden'),
+});
+
+export const AstPositionSchema = z.object({
+  line: z.number().int().min(1).describe('1-based line number'),
+  column: z.number().int().min(1).describe('1-based column number'),
+});
+
+export type AstPosition = z.infer<typeof AstPositionSchema>;
+
+export const AstNodeSchema: z.ZodType<{
+  type: string;
+  text: string;
+  startLine: number;
+  startColumn: number;
+  endLine: number;
+  endColumn: number;
+  isNamed: boolean;
+  hasError: boolean;
+  isMissing: boolean;
+  children: Array<z.infer<typeof AstNodeSchema>>;
+}> = z.lazy(() =>
+  z.object({
+    type: z.string(),
+    text: z.string(),
+    startLine: z.number().int().min(1),
+    startColumn: z.number().int().min(1),
+    endLine: z.number().int().min(1),
+    endColumn: z.number().int().min(1),
+    isNamed: z.boolean(),
+    hasError: z.boolean(),
+    isMissing: z.boolean(),
+    children: z.array(AstNodeSchema),
+  }),
+);
+
+export type AstNode = z.infer<typeof AstNodeSchema>;
+
+export const TreeEditSchema = z.object({
+  startIndex: z.number().int().min(0),
+  oldEndIndex: z.number().int().min(0),
+  newEndIndex: z.number().int().min(0),
+  startPosition: z.object({ row: z.number().int().min(0), column: z.number().int().min(0) }),
+  oldEndPosition: z.object({ row: z.number().int().min(0), column: z.number().int().min(0) }),
+  newEndPosition: z.object({ row: z.number().int().min(0), column: z.number().int().min(0) }),
+});
+
+export type TreeEdit = z.infer<typeof TreeEditSchema>;
+
+export const GetAstArgsSchema = z.object({
+  filePath: z.string().describe('Path to source file'),
+  maxDepth: z.number().int().min(1).max(25).optional().describe('Maximum tree depth to serialize'),
+  namedOnly: z.boolean().optional().describe('Only include named nodes'),
+});
+
+export const GetAstNodeAtPositionArgsSchema = z.object({
+  filePath: z.string().describe('Path to source file'),
+  line: z.number().int().min(1).describe('1-based line number'),
+  column: z.number().int().min(1).describe('1-based column number'),
+});
+
+export const GetAstNodeRelativesArgsSchema = z.object({
+  filePath: z.string().describe('Path to source file'),
+  line: z.number().int().min(1).describe('1-based line number'),
+  column: z.number().int().min(1).describe('1-based column number'),
+  includeParent: z.boolean().optional().describe('Include parent node'),
+  includeSiblings: z.boolean().optional().describe('Include previous and next siblings'),
+});
+
+export const GetSyntaxErrorsArgsSchema = z.object({
+  filePath: z.string().describe('Path to source file'),
+});
+
+export const GetHighlightCapturesArgsSchema = z.object({
+  filePath: z.string().describe('Path to source file'),
+  query: z.string().describe('Tree-sitter query string'),
+});
+
+export const GetFoldingRangesArgsSchema = z.object({
+  filePath: z.string().describe('Path to source file'),
+});
+
+export const GetDocumentSymbolsArgsSchema = z.object({
+  filePath: z.string().describe('Path to source file'),
+});
+
+export const StructuralSearchArgsSchema = z.object({
+  repositoryPath: z.string().describe('Path to indexed repository'),
+  query: z.string().describe('Tree-sitter query string'),
+  language: z.enum(['javascript', 'typescript', 'tsx', 'csharp', 'sql']).optional(),
+  fileName: z.string().optional().describe('File name filter'),
+});
+
+export const GetScopeAtPositionArgsSchema = z.object({
+  filePath: z.string().describe('Path to source file'),
+  line: z.number().int().min(1).describe('1-based line number'),
+  column: z.number().int().min(1).describe('1-based column number'),
+});
+
+export const FindEnclosingSymbolArgsSchema = z.object({
+  filePath: z.string().describe('Path to source file'),
+  line: z.number().int().min(1).describe('1-based line number'),
+  column: z.number().int().min(1).describe('1-based column number'),
+});
+
+export const FindSimilarNodesArgsSchema = z.object({
+  repositoryPath: z.string().describe('Path to indexed repository'),
+  filePath: z.string().describe('Path to source file'),
+  line: z.number().int().min(1).describe('1-based line number'),
+  column: z.number().int().min(1).describe('1-based column number'),
+  fileName: z.string().optional().describe('File name filter'),
+});
+
+export const DetectTodosArgsSchema = z.object({
+  repositoryPath: z.string().describe('Path to indexed repository'),
+  fileName: z.string().optional().describe('File name filter'),
+});
+
+export const GetExpandSelectionArgsSchema = z.object({
+  filePath: z.string().describe('Path to source file'),
+  startLine: z.number().int().min(1).describe('Selection start line, 1-based'),
+  startColumn: z.number().int().min(1).describe('Selection start column, 1-based'),
+  endLine: z.number().int().min(1).describe('Selection end line, 1-based'),
+  endColumn: z.number().int().min(1).describe('Selection end column, 1-based'),
+});
+
+export const GetCrossFileReferencesArgsSchema = z.object({
+  repositoryPath: z.string().describe('Path to indexed repository'),
+  symbolName: z.string().describe('Symbol name to search for'),
   caseInsensitive: z.boolean().optional().describe('Perform case-insensitive matching'),
 });

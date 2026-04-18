@@ -2,7 +2,14 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import * as ts from 'typescript';
 import { parseCSharpFile } from './csharp-parser.js';
-import type { ClassInfo, FileIndex, FunctionInfo, ImportInfo, VariableInfo } from './schemas.js';
+import type {
+  ClassInfo,
+  ExportInfo,
+  FileIndex,
+  FunctionInfo,
+  ImportInfo,
+  VariableInfo,
+} from './schemas.js';
 import { parseSqlFile } from './sql-parser.js';
 
 const TYPESCRIPT_EXTENSIONS = ['.ts', '.tsx', '.mts', '.cts'] as const;
@@ -100,6 +107,7 @@ async function parseJavaScriptFile(filePath: string): Promise<FileIndex> {
   const imports: ImportInfo[] = [];
   const variables: VariableInfo[] = [];
   const exports: string[] = [];
+  const exportDetails: ExportInfo[] = [];
 
   const getLineNumber = (position: number): number =>
     sourceFile.getLineAndCharacterOfPosition(position).line + 1;
@@ -109,6 +117,13 @@ async function parseJavaScriptFile(filePath: string): Promise<FileIndex> {
     );
   const getReturnType = (node: ts.FunctionLikeDeclaration): string | undefined =>
     node.type?.getText(sourceFile);
+  const recordExport = (name: string, position: number): void => {
+    exports.push(name);
+    exportDetails.push({
+      name,
+      line: getLineNumber(position),
+    });
+  };
 
   function visit(node: ts.Node, inheritedExport = false): void {
     if (ts.isFunctionDeclaration(node) && node.name) {
@@ -127,7 +142,7 @@ async function parseJavaScriptFile(filePath: string): Promise<FileIndex> {
         returnType: getReturnType(node),
       });
       if (exported) {
-        exports.push(node.name.text);
+        recordExport(node.name.text, node.getStart(sourceFile));
       }
     }
 
@@ -156,7 +171,7 @@ async function parseJavaScriptFile(filePath: string): Promise<FileIndex> {
         });
 
         if (exported) {
-          exports.push(variableName);
+          recordExport(variableName, declaration.getStart(sourceFile));
         }
 
         if (
@@ -216,7 +231,7 @@ async function parseJavaScriptFile(filePath: string): Promise<FileIndex> {
         inheritedExport ||
         Boolean(node.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword));
       if (exported) {
-        exports.push(node.name.text);
+        recordExport(node.name.text, node.getStart(sourceFile));
       }
     }
 
@@ -250,12 +265,15 @@ async function parseJavaScriptFile(filePath: string): Promise<FileIndex> {
 
     if (ts.isExportDeclaration(node) && node.exportClause && ts.isNamedExports(node.exportClause)) {
       for (const element of node.exportClause.elements) {
-        exports.push(element.name.text);
+        recordExport(element.name.text, element.getStart(sourceFile));
       }
     }
 
     if (ts.isExportAssignment(node)) {
-      exports.push(ts.isIdentifier(node.expression) ? node.expression.text : 'default');
+      recordExport(
+        ts.isIdentifier(node.expression) ? node.expression.text : 'default',
+        node.getStart(sourceFile),
+      );
     }
 
     ts.forEachChild(node, (child) => visit(child, inheritedExport));
@@ -270,6 +288,7 @@ async function parseJavaScriptFile(filePath: string): Promise<FileIndex> {
     imports,
     variables,
     exports,
+    exportDetails,
     language: isTypeScriptExtension(extension) ? 'typescript' : 'javascript',
   };
 }

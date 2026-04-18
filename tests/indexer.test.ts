@@ -78,6 +78,19 @@ describe('RepositoryIndexer', () => {
     expect(indexer.searchSqlIndexes(repoPath, 'IX_Users_Email')).toHaveLength(1);
   });
 
+  it('zoekt cross-file references voor een symbool', async () => {
+    await indexer.indexRepository(repoPath);
+
+    const addReferences = indexer.getCrossFileReferences(repoPath, 'add');
+    const subtractReferences = indexer.getCrossFileReferences(repoPath, 'subtract');
+    const subtractExportReference = subtractReferences.find((item) => item.kind === 'export');
+
+    expect(addReferences.some((item) => item.kind === 'definition')).toBe(true);
+    expect(addReferences.some((item) => item.kind === 'import')).toBe(true);
+    expect(addReferences.some((item) => item.kind === 'export')).toBe(true);
+    expect(subtractExportReference?.line).toBe(2);
+  });
+
   it('geeft statistieken inclusief SQL trigger en index totalen', async () => {
     await indexer.indexRepository(repoPath);
 

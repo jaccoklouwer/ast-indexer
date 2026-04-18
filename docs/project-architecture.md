@@ -46,12 +46,12 @@ MCP client
 
 `parseFile()` in `parser.ts` routes by file extension:
 
-| Extension | Parser |
-|---|---|
+| Extension                  | Parser                                                               |
+| -------------------------- | -------------------------------------------------------------------- |
 | `.js` `.jsx` `.mjs` `.cjs` | `parseJavaScriptFile()` — TypeScript Compiler API, ScriptKind.JS/JSX |
 | `.ts` `.tsx` `.mts` `.cts` | `parseJavaScriptFile()` — TypeScript Compiler API, ScriptKind.TS/TSX |
-| `.cs` | `parseCSharpFile()` — regex-based, UTF-16 aware |
-| `.sql` | `parseSqlFile()` — regex-based |
+| `.cs`                      | `parseCSharpFile()` — regex-based, UTF-16 aware                      |
+| `.sql`                     | `parseSqlFile()` — regex-based                                       |
 
 All parsers return a `FileIndex` object validated by the Zod schema in `schemas.ts`.
 
@@ -102,10 +102,10 @@ Cache keys are resolved per file by `RepositoryIndexer.resolveFileCacheKey()`:
 
 The server supports two transports selectable at startup:
 
-| Transport | Default | Notes |
-|---|---|---|
-| `stdio` | ✓ | Standard MCP transport; one server process per client |
-| `http` | | Streamable HTTP on `/mcp`; port `3847` by default; supports concurrent sessions |
+| Transport | Default | Notes                                                                           |
+| --------- | ------- | ------------------------------------------------------------------------------- |
+| `stdio`   | ✓       | Standard MCP transport; one server process per client                           |
+| `http`    |         | Streamable HTTP on `/mcp`; port `3847` by default; supports concurrent sessions |
 
 ## Schemas
 
@@ -146,5 +146,5 @@ The project uses Node16 module resolution with ES modules. All relative imports 
 
 ```typescript
 import { parseFile } from './parser.js'; // ✓
-import { parseFile } from './parser';     // ✗ runtime error
+import { parseFile } from './parser'; // ✗ runtime error
 ```
