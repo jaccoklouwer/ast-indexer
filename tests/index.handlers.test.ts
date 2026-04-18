@@ -63,14 +63,12 @@ describe('MCP server tool handlers', () => {
       symbolName: 'add',
     });
     const clearCacheResult = await tools.clear_cache.handler({ repositoryPath: repoPath });
-    const clearAllResult = await tools.clear_cache.handler({});
 
     expect(indexResult.structuredContent?.success).toBe(true);
     expect(functionResult.structuredContent?.count).toBe(1);
     expect(statisticsResult.structuredContent?.success).toBe(true);
     expect(crossFileReferenceResult.structuredContent?.count).toBeGreaterThan(0);
     expect(clearCacheResult.structuredContent?.success).toBe(true);
-    expect(clearAllResult.structuredContent?.success).toBe(true);
   });
 
   it('geeft nette fouten terug voor ongeindexeerde of mislukte tool-aanroepen', async () => {

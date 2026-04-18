@@ -4,10 +4,9 @@ All notable changes to this project will be documented in this file. See [standa
 
 ### [0.1.15](https://github.com/jaccoklouwer/ast-indexer/compare/v0.1.14...v0.1.15) (2026-04-18)
 
-
 ### Features
 
-* 🎸 voeg tree-sitter AST tools toe en herstel ELECTRON_RUN_ ([326959b](https://github.com/jaccoklouwer/ast-indexer/commit/326959b9414768697ded5449859330451d9bb27d))
+- 🎸 voeg tree-sitter AST tools toe en herstel ELECTRON*RUN* ([326959b](https://github.com/jaccoklouwer/ast-indexer/commit/326959b9414768697ded5449859330451d9bb27d))
 
 ### [0.1.14](https://github.com/jaccoklouwer/ast-indexer/compare/v0.1.13...v0.1.14) (2026-04-17)
 
