@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.1.17](https://github.com/jaccoklouwer/ast-indexer/compare/v0.1.16...v0.1.17) (2026-04-18)
+
+
+### Bug Fixes
+
+* **ci:** voeg CHANGELOG.md toe aan .prettierignore ([df6e6d6](https://github.com/jaccoklouwer/ast-indexer/commit/df6e6d6cb5b98701e953df2b7345a00680fbdd89))
+
 ### [0.1.16](https://github.com/jaccoklouwer/ast-indexer/compare/v0.1.15...v0.1.16) (2026-04-18)
 
 
