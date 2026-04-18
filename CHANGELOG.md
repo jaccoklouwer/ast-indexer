@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.1.16](https://github.com/jaccoklouwer/ast-indexer/compare/v0.1.15...v0.1.16) (2026-04-18)
+
+
+### Bug Fixes
+
+* **tests:** stabilize clear cache handler test ([dd96bd7](https://github.com/jaccoklouwer/ast-indexer/commit/dd96bd7d0e92a13e2018039ea5e6507bc45daa5b))
+
 ### [0.1.15](https://github.com/jaccoklouwer/ast-indexer/compare/v0.1.14...v0.1.15) (2026-04-18)
 
 ### Features
