@@ -45,6 +45,12 @@ function createDependencies() {
     getCrossFileReferences: vi.fn(() => [
       { filePath: 'C:\\repo\\src\\math.ts', kind: 'definition', line: 1 },
     ]),
+    getFileStatus: vi.fn(async () => ({
+      repositoryPath: 'C:\\repo',
+      filePath: 'C:\\repo\\src\\index.ts',
+      status: 'clean',
+      modified: false,
+    })),
     clearCache: vi.fn(async () => undefined),
   } as unknown as RepositoryIndexer;
 
@@ -120,6 +126,10 @@ describe('tool-registry', () => {
       repositoryPath: 'C:\\repo',
     });
     const clearAllResult = await tools.clear_cache.handler({});
+    const fileStatusResult = await tools.get_file_status.handler({
+      repositoryPath: 'C:\\repo',
+      filePath: 'C:\\repo\\src\\index.ts',
+    });
 
     expect(indexResult.structuredContent?.message).toContain('2 bestanden');
     expect(functionsResult.structuredContent?.count).toBe(1);
@@ -133,6 +143,9 @@ describe('tool-registry', () => {
     expect(referencesResult.structuredContent?.count).toBe(1);
     expect(clearRepositoryResult.structuredContent?.message).toContain('Cache gewist');
     expect(clearAllResult.structuredContent?.message).toBe('Alle cache gewist');
+    expect(fileStatusResult.structuredContent?.success).toBe(true);
+    expect(fileStatusResult.structuredContent?.status).toBe('clean');
+    expect(fileStatusResult.structuredContent?.modified).toBe(false);
     expect(
       (indexer as unknown as { getCrossFileReferences: ReturnType<typeof vi.fn> })
         .getCrossFileReferences,

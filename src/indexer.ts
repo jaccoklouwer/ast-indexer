@@ -8,6 +8,7 @@ import type {
   ClassInfo,
   FileIndex,
   FunctionInfo,
+  GitFileStatus,
   ImportInfo,
   RepositoryIndex,
   SqlIndexInfo,
@@ -17,6 +18,41 @@ import type {
 } from './schemas.js';
 
 const BATCH_SIZE = 10;
+
+export interface FileStatusResult {
+  repositoryPath: string;
+  filePath: string;
+  status: GitFileStatus;
+  modified: boolean;
+}
+
+function parseGitPorcelainStatus(porcelainOutput: string): GitFileStatus {
+  const line = porcelainOutput.trimEnd();
+  if (!line) {
+    return 'clean';
+  }
+
+  const x = line[0] ?? ' ';
+  const y = line[1] ?? ' ';
+
+  if (x === '?' && y === '?') {
+    return 'untracked';
+  }
+
+  if (x === 'R' || y === 'R') {
+    return 'renamed';
+  }
+
+  if (x === 'D' || y === 'D') {
+    return 'deleted';
+  }
+
+  if (x !== ' ') {
+    return 'staged';
+  }
+
+  return 'modified';
+}
 
 interface Statistics {
   filesIndexed: number;
@@ -377,5 +413,29 @@ export class RepositoryIndexer {
 
   async hasDiskCache(repositoryPath: string): Promise<boolean> {
     return pathExists(getRepoCacheDir(repositoryPath));
+  }
+
+  async getFileStatus(repositoryPath: string, filePath: string): Promise<FileStatusResult> {
+    if (!(await this.isGitRepository(repositoryPath))) {
+      throw new Error(`${repositoryPath} is geen geldige Git repository`);
+    }
+
+    await this.indexRepository(repositoryPath);
+
+    const git = simpleGit(repositoryPath);
+    const relativePath = path.relative(repositoryPath, filePath);
+    const porcelain = (await git.raw(['status', '--porcelain', '--', relativePath])).trimEnd();
+
+    if (!porcelain) {
+      const exists = await pathExists(filePath);
+      if (!exists) {
+        throw new Error(`Bestand niet gevonden: ${filePath}`);
+      }
+
+      return { repositoryPath, filePath, status: 'clean', modified: false };
+    }
+
+    const status = parseGitPorcelainStatus(porcelain);
+    return { repositoryPath, filePath, status, modified: status !== 'clean' };
   }
 }

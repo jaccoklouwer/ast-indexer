@@ -20,6 +20,7 @@ import {
   GetCrossFileReferencesArgsSchema,
   GetDocumentSymbolsArgsSchema,
   GetExpandSelectionArgsSchema,
+  GetFileStatusArgsSchema,
   GetFoldingRangesArgsSchema,
   GetHighlightCapturesArgsSchema,
   GetScopeAtPositionArgsSchema,
@@ -411,6 +412,23 @@ export function createCommonToolDefinitions({
           args.caseInsensitive,
         );
         return { success: true, count: references.length, references };
+      }),
+    },
+    {
+      name: 'get_file_status',
+      title: 'Get File Status',
+      description:
+        'Herindexeer de repository en geef daarna de Git working tree status van één bestand terug.',
+      inputSchema: GetFileStatusArgsSchema,
+      handler: createToolHandler(GetFileStatusArgsSchema, async (args) => {
+        const result = await indexer.getFileStatus(args.repositoryPath, args.filePath);
+        return {
+          success: true,
+          repositoryPath: result.repositoryPath,
+          filePath: result.filePath,
+          status: result.status,
+          modified: result.modified,
+        };
       }),
     },
     {

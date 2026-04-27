@@ -63,12 +63,19 @@ describe('MCP server tool handlers', () => {
       symbolName: 'add',
     });
     const clearCacheResult = await tools.clear_cache.handler({ repositoryPath: repoPath });
+    const fileStatusResult = await tools.get_file_status.handler({
+      repositoryPath: repoPath,
+      filePath: sourceFilePath,
+    });
 
     expect(indexResult.structuredContent?.success).toBe(true);
     expect(functionResult.structuredContent?.count).toBe(1);
     expect(statisticsResult.structuredContent?.success).toBe(true);
     expect(crossFileReferenceResult.structuredContent?.count).toBeGreaterThan(0);
     expect(clearCacheResult.structuredContent?.success).toBe(true);
+    expect(fileStatusResult.structuredContent?.success).toBe(true);
+    expect(fileStatusResult.structuredContent?.status).toBe('clean');
+    expect(fileStatusResult.structuredContent?.modified).toBe(false);
   });
 
   it('geeft nette fouten terug voor ongeindexeerde of mislukte tool-aanroepen', async () => {
@@ -85,10 +92,16 @@ describe('MCP server tool handlers', () => {
     const astResult = await tools.get_ast.handler({
       filePath: path.join(repoPath, 'src', 'missing.js'),
     });
+    const fileStatusMissingResult = await tools.get_file_status.handler({
+      repositoryPath: repoPath,
+      filePath: path.join(repoPath, 'src', 'does-not-exist.ts'),
+    });
 
     expect(statisticsResult.isError).toBe(true);
     expect(structuralSearchResult.isError).toBe(true);
     expect(astResult.isError).toBe(true);
     expect(astResult.content?.[0]?.text).toContain('Fout:');
+    expect(fileStatusMissingResult.isError).toBe(true);
+    expect(fileStatusMissingResult.content?.[0]?.text).toContain('Fout:');
   });
 });

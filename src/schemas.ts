@@ -317,3 +317,19 @@ export const GetCrossFileReferencesArgsSchema = z.object({
   symbolName: z.string().describe('Symbol name to search for'),
   caseInsensitive: z.boolean().optional().describe('Perform case-insensitive matching'),
 });
+
+export const GitFileStatusSchema = z.enum([
+  'clean',
+  'modified',
+  'staged',
+  'untracked',
+  'deleted',
+  'renamed',
+]);
+
+export type GitFileStatus = z.infer<typeof GitFileStatusSchema>;
+
+export const GetFileStatusArgsSchema = z.object({
+  repositoryPath: z.string().describe('Pad naar Git repository'),
+  filePath: z.string().describe('Absoluut pad naar het bestand'),
+});

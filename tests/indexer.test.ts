@@ -114,4 +114,116 @@ describe('RepositoryIndexer', () => {
     expect(indexer.getCachedIndex(repoPath)).toBeUndefined();
     await expect(fs.access(getRepoCacheDir(repoPath))).rejects.toThrow();
   });
+
+  describe('getFileStatus', () => {
+    let statusRepoPath: string;
+    let cleanFilePath: string;
+    let modifyFilePath: string;
+    let stageFilePath: string;
+
+    beforeAll(async () => {
+      statusRepoPath = path.join(tempDir, 'status-repo');
+      await fs.mkdir(path.join(statusRepoPath, 'src'), { recursive: true });
+      cleanFilePath = path.join(statusRepoPath, 'src', 'clean.ts');
+      modifyFilePath = path.join(statusRepoPath, 'src', 'modify.ts');
+      stageFilePath = path.join(statusRepoPath, 'src', 'stage.ts');
+
+      await fs.writeFile(cleanFilePath, 'export const clean = true;\n');
+      await fs.writeFile(modifyFilePath, 'export const x = 1;\n');
+      await fs.writeFile(stageFilePath, 'export const s = 1;\n');
+
+      const git = simpleGit(statusRepoPath);
+      await git.init();
+      await git.addConfig('user.name', 'Test User');
+      await git.addConfig('user.email', 'test@example.com');
+      await git.addConfig('core.autocrlf', 'false');
+      await git.add('.');
+      await git.commit('Initial commit');
+    });
+
+    it('geeft clean terug voor een gecommit ongewijzigd bestand', async () => {
+      const result = await indexer.getFileStatus(statusRepoPath, cleanFilePath);
+
+      expect(result.status).toBe('clean');
+      expect(result.modified).toBe(false);
+      expect(result.filePath).toBe(cleanFilePath);
+      expect(result.repositoryPath).toBe(statusRepoPath);
+    });
+
+    it('geeft modified terug voor een unstaged gewijzigd bestand', async () => {
+      await fs.writeFile(modifyFilePath, 'export const x = 2;\n');
+
+      const result = await indexer.getFileStatus(statusRepoPath, modifyFilePath);
+
+      expect(result.status).toBe('modified');
+      expect(result.modified).toBe(true);
+
+      await simpleGit(statusRepoPath).raw(['checkout', '--', modifyFilePath]);
+    });
+
+    it('geeft staged terug voor een gestagede wijziging', async () => {
+      const git = simpleGit(statusRepoPath);
+      await fs.writeFile(stageFilePath, 'export const s = 2;\n');
+      await git.add(stageFilePath);
+
+      const result = await indexer.getFileStatus(statusRepoPath, stageFilePath);
+
+      expect(result.status).toBe('staged');
+      expect(result.modified).toBe(true);
+
+      await git.raw(['restore', '--staged', '--', stageFilePath]);
+      await git.raw(['checkout', '--', stageFilePath]);
+    });
+
+    it('geeft untracked terug voor een nieuw bestand buiten de index', async () => {
+      const untrackedPath = path.join(statusRepoPath, 'src', 'untracked.ts');
+      await fs.writeFile(untrackedPath, 'export const y = 99;\n');
+
+      const result = await indexer.getFileStatus(statusRepoPath, untrackedPath);
+
+      expect(result.status).toBe('untracked');
+      expect(result.modified).toBe(true);
+
+      await fs.unlink(untrackedPath);
+    });
+
+    it('geeft deleted terug voor een verwijderd getrackt bestand', async () => {
+      const toDeletePath = path.join(statusRepoPath, 'src', 'todelete.ts');
+      await fs.writeFile(toDeletePath, 'export const z = 0;\n');
+      const git = simpleGit(statusRepoPath);
+      await git.add(toDeletePath);
+      await git.commit('voeg todelete toe');
+      await fs.unlink(toDeletePath);
+
+      const result = await indexer.getFileStatus(statusRepoPath, toDeletePath);
+
+      expect(result.status).toBe('deleted');
+      expect(result.modified).toBe(true);
+
+      await git.raw(['restore', toDeletePath]);
+      await git.rm([toDeletePath]);
+      await git.commit('verwijder todelete');
+    });
+
+    it('gooit een fout voor een pad dat niet bestaat en niet in Git zit', async () => {
+      const missingPath = path.join(statusRepoPath, 'src', 'does-not-exist.ts');
+
+      await expect(indexer.getFileStatus(statusRepoPath, missingPath)).rejects.toThrow(
+        'Bestand niet gevonden',
+      );
+    });
+
+    it('herindexeert de repository automatisch voor de statusbepaling', async () => {
+      const newFilePath = path.join(statusRepoPath, 'src', 'fresh.ts');
+      await fs.writeFile(newFilePath, 'export const fresh = true;\n');
+
+      await indexer.getFileStatus(statusRepoPath, newFilePath);
+
+      const cached = indexer.getCachedIndex(statusRepoPath);
+      expect(cached).toBeDefined();
+      expect(indexer.searchFunctions(statusRepoPath)).toBeDefined();
+
+      await fs.unlink(newFilePath);
+    });
+  });
 });
