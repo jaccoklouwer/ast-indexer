@@ -25,6 +25,27 @@ vi.mock('../src/structural-tools.js', () => ({
   structuralSearch: vi.fn(),
 }));
 
+type SerializedAstNode = Awaited<ReturnType<typeof astTools.getAst>>['tree'];
+
+function createSerializedAstNode(
+  type: string,
+  overrides: Partial<SerializedAstNode> = {},
+): SerializedAstNode {
+  return {
+    type,
+    text: '',
+    startLine: 1,
+    startColumn: 1,
+    endLine: 1,
+    endColumn: 1,
+    isNamed: true,
+    hasError: false,
+    isMissing: false,
+    children: [],
+    ...overrides,
+  };
+}
+
 function createDependencies() {
   const repositoryIndex = {
     repositoryPath: 'C:\\repo',
@@ -159,22 +180,26 @@ describe('tool-registry', () => {
     const { indexer, repositoryIndex, treeSitterEngine } = createDependencies();
     const tools = getToolMap(indexer, treeSitterEngine);
 
+    const programNode = createSerializedAstNode('program');
+    const identifierNode = createSerializedAstNode('identifier');
+
     vi.mocked(astTools.getAst).mockResolvedValue({
       filePath: 'file.ts',
-      tree: { type: 'program' },
+      language: 'typescript',
+      tree: programNode,
     });
     vi.mocked(astTools.getAstNodeAtPosition).mockResolvedValue({
       filePath: 'file.ts',
       line: 1,
       column: 1,
-      node: { type: 'identifier' },
+      node: identifierNode,
       parents: [],
     });
     vi.mocked(astTools.getAstNodeRelatives).mockResolvedValue({
       filePath: 'file.ts',
       line: 1,
       column: 1,
-      node: { type: 'identifier' },
+      node: identifierNode,
       parent: null,
       children: [],
       previousSibling: null,
@@ -233,8 +258,86 @@ describe('tool-registry', () => {
     vi.mocked(structuralTools.getExpandedSelection).mockResolvedValue({
       filePath: 'file.ts',
       selection: { startLine: 1, startColumn: 1, endLine: 1, endColumn: 3 },
-      expanded: { type: 'identifier' },
+      expanded: identifierNode,
     } as never);
+
+    const indexResult = await tools.index_repository.handler(
+      {
+        repositoryPath: 'C:\\repo',
+        includePatterns: ['src/**/*.ts'],
+        excludePatterns: ['dist/**'],
+      },
+      {},
+    );
+    const functionsResult = await tools.search_functions.handler({
+      repositoryPath: 'C:\\repo',
+      functionName: 'add',
+      fileName: 'math.ts',
+      caseInsensitive: true,
+    });
+    const classesResult = await tools.search_classes.handler({
+      repositoryPath: 'C:\\repo',
+      className: 'Calculator',
+    });
+    const importsResult = await tools.search_imports.handler({
+      repositoryPath: 'C:\\repo',
+      moduleName: './math.js',
+    });
+    const statisticsResult = await tools.get_statistics.handler({
+      repositoryPath: 'C:\\repo',
+    });
+    const tablesResult = await tools.search_sql_tables.handler({
+      repositoryPath: 'C:\\repo',
+      tableName: 'Users',
+    });
+    const viewsResult = await tools.search_sql_views.handler({
+      repositoryPath: 'C:\\repo',
+      viewName: 'UserView',
+    });
+    const triggersResult = await tools.search_sql_triggers.handler({
+      repositoryPath: 'C:\\repo',
+      triggerName: 'UserTrigger',
+    });
+    const indexesResult = await tools.search_sql_indexes.handler({
+      repositoryPath: 'C:\\repo',
+      indexName: 'IX_Users_Email',
+    });
+    const referencesResult = await tools.get_cross_file_references.handler({
+      repositoryPath: 'C:\\repo',
+      symbolName: 'add',
+      caseInsensitive: true,
+    });
+    const clearRepositoryResult = await tools.clear_cache.handler({
+      repositoryPath: 'C:\\repo',
+    });
+    const clearAllResult = await tools.clear_cache.handler({});
+    const fileStatusResult = await tools.get_file_status.handler({
+      repositoryPath: 'C:\\repo',
+      filePath: 'C:\\repo\\src\\index.ts',
+    });
+
+    expect(indexResult.structuredContent?.message).toContain('2 bestanden');
+    expect(functionsResult.structuredContent?.count).toBe(1);
+    expect(classesResult.structuredContent?.count).toBe(1);
+    expect(importsResult.structuredContent?.count).toBe(1);
+    expect(statisticsResult.structuredContent?.success).toBe(true);
+    expect(tablesResult.structuredContent?.count).toBe(1);
+    expect(viewsResult.structuredContent?.count).toBe(1);
+    expect(triggersResult.structuredContent?.count).toBe(1);
+    expect(indexesResult.structuredContent?.count).toBe(1);
+    expect(referencesResult.structuredContent?.count).toBe(1);
+    expect(clearRepositoryResult.structuredContent?.message).toContain('Cache gewist');
+    expect(clearAllResult.structuredContent?.message).toBe('Alle cache gewist');
+    expect(fileStatusResult.structuredContent?.success).toBe(true);
+    expect(fileStatusResult.structuredContent?.status).toBe('clean');
+    expect(fileStatusResult.structuredContent?.modified).toBe(false);
+    expect(
+      (indexer as unknown as { getCrossFileReferences: ReturnType<typeof vi.fn> })
+        .getCrossFileReferences,
+    ).toHaveBeenCalledWith('C:\\repo', 'add', true);
+    expect(
+      (treeSitterEngine as unknown as { clearCache: ReturnType<typeof vi.fn> }).clearCache,
+    ).toHaveBeenCalledTimes(2);
 
     expect(
       (await tools.get_ast.handler({ filePath: 'file.ts', maxDepth: 2, namedOnly: false }))
