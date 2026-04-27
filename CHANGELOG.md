@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.1.18](https://github.com/jaccoklouwer/ast-indexer/compare/v0.1.17...v0.1.18) (2026-04-27)
+
+
+### Features
+
+* add getFileStatus functionality to retrieve Git file status ([a3791f4](https://github.com/jaccoklouwer/ast-indexer/commit/a3791f405ba894260875c8a48948af33946e9ef1))
+* **tests:** enhance tool-registry tests with serialized AST node creation ([3ef1285](https://github.com/jaccoklouwer/ast-indexer/commit/3ef12859d044396f00f71c71987ef22f77fb8ce9))
+
 ### [0.1.17](https://github.com/jaccoklouwer/ast-indexer/compare/v0.1.16...v0.1.17) (2026-04-18)
 
 
