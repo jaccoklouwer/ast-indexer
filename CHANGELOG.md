@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.2.1](https://github.com/jaccoklouwer/ast-indexer/compare/v0.1.22...v0.2.1) (2026-06-22)
+
+## 0.2.0 (2026-06-22)
+
+
+### Bug Fixes
+
+* **publish:** add explicit npm auth step and clean up publishConfig ([338b603](https://github.com/jaccoklouwer/ast-indexer/commit/338b603b31e8f05e09ddd2588c51ca0359f73743))
+
 ## [0.2.0](https://github.com/jaccoklouwer/ast-indexer/compare/v0.1.22...v0.2.0) (2026-06-22)
 
 
