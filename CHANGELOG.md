@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.1.22](https://github.com/jaccoklouwer/ast-indexer/compare/v0.1.21...v0.1.22) (2026-06-22)
+
+
+### Bug Fixes
+
+* 🐛 package json ([e894015](https://github.com/jaccoklouwer/ast-indexer/commit/e89401587c2e65806dd9ff4fb7bbcba7337171d2))
+
 ### [0.1.21](https://github.com/jaccoklouwer/ast-indexer/compare/v0.1.20...v0.1.21) (2026-06-22)
 
 ### [0.1.20](https://github.com/jaccoklouwer/ast-indexer/compare/v0.1.19...v0.1.20) (2026-06-22)
