@@ -13,6 +13,9 @@ src/
   parser.ts         # Parser dispatcher + directory scanner + glob matching
   csharp-parser.ts  # C# parser (regex-based)
   sql-parser.ts     # SQL parser (regex-based)
+  tree-sitter-engine.ts  # Shared Tree-sitter runtime and language loading
+  ast-tools.ts      # File-scoped AST inspection tools
+  structural-tools.ts # Repository-scoped Tree-sitter queries and structural helpers
   schemas.ts        # Zod schemas and TypeScript types (single source of truth)
   cache/
     cache-manager.ts  # Coordinates memory and disk layers
@@ -40,6 +43,13 @@ MCP client
     → RepositoryIndexer.searchFunctions()
       → reads from in-process Map
       → filters by name and/or fileName using .includes()
+
+MCP client
+  → get_ast / structural_search / …
+    → TreeSitterEngine
+      → loads runtime + language grammar on demand
+      → parses current file contents with Tree-sitter
+      → executes syntax-tree inspection or query logic
 ```
 
 ## Parser dispatch
@@ -74,6 +84,20 @@ Regex-based extraction without an external AST library. Handles UTF-16 encoded f
 - **Classes and interfaces**: name, access modifiers (`isPublic`, `isAbstract`, `isInterface`), `extends`, `implements`, namespace.
 - **Methods**: name, parameters, access/async/static modifiers. Methods already captured inside a class body are not duplicated in the top-level functions list.
 - **Using directives**: stored as `ImportInfo` with `isNamespace: true`.
+
+This layer is intentionally definition-oriented. It does not index invocation or call-site nodes such as FluentAssertions `.Should()` usages.
+
+### Tree-sitter tooling (`tree-sitter-engine.ts`, `ast-tools.ts`, `structural-tools.ts`)
+
+Tree-sitter complements the regex parsers with syntax-tree inspection and structural search for JavaScript, TypeScript, TSX, C#, and SQL.
+
+- **AST inspection**: `get_ast`, `get_ast_node_at_position`, `get_ast_node_relatives`, `get_document_symbols`, `get_folding_ranges`, `get_syntax_errors`.
+- **Structural queries**: `structural_search` executes Tree-sitter queries across indexed files and is the correct layer for syntactic call-site searches.
+- **C# call sites**: queries can match invocation shapes such as `(invocation_expression function: (member_access_expression name: (identifier) @_method (#eq? @_method "Should"))) @should-call` to find `.Should()` usages in test code.
+
+Helper captures prefixed with `_` are available for predicates but are filtered from public tool results.
+
+The repository uses a pnpm-managed patch for local `tree-sitter` development installs. Consumer installs from npm rely on upstream native binaries, so the published package explicitly targets the Node.js majors for which those binaries are available.
 
 ### SQL (`sql-parser.ts`)
 

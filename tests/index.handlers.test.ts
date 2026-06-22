@@ -27,12 +27,30 @@ describe('MCP server tool handlers', () => {
     sourceFilePath = path.join(repoPath, 'src', 'index.js');
 
     await fs.mkdir(path.join(repoPath, 'src'), { recursive: true });
+    await fs.mkdir(path.join(repoPath, 'tests'), { recursive: true });
     await fs.writeFile(
       sourceFilePath,
       [
         "import { add } from './math.js';",
         'export function add(a, b) {',
         '  return a + b;',
+        '}',
+      ].join('\n'),
+    );
+    await fs.writeFile(
+      path.join(repoPath, 'tests', 'assertions.cs'),
+      [
+        'using FluentAssertions;',
+        '',
+        'namespace Demo.Tests;',
+        '',
+        'public class AssertionsTests',
+        '{',
+        '  public void UsesShould()',
+        '  {',
+        '    var actual = 42;',
+        '    actual.Should().Be(42);',
+        '  }',
         '}',
       ].join('\n'),
     );
@@ -62,6 +80,18 @@ describe('MCP server tool handlers', () => {
       repositoryPath: repoPath,
       symbolName: 'add',
     });
+    const structuralSearchResult = await tools.structural_search.handler({
+      repositoryPath: repoPath,
+      language: 'csharp',
+      fileName: 'tests',
+      query: [
+        '(invocation_expression',
+        '  function: (member_access_expression',
+        '    name: (identifier) @_method',
+        '    (#eq? @_method "Should"))',
+        ') @should-call',
+      ].join('\n'),
+    });
     const clearCacheResult = await tools.clear_cache.handler({ repositoryPath: repoPath });
     const fileStatusResult = await tools.get_file_status.handler({
       repositoryPath: repoPath,
@@ -72,6 +102,7 @@ describe('MCP server tool handlers', () => {
     expect(functionResult.structuredContent?.count).toBe(1);
     expect(statisticsResult.structuredContent?.success).toBe(true);
     expect(crossFileReferenceResult.structuredContent?.count).toBeGreaterThan(0);
+    expect(structuralSearchResult.structuredContent?.count).toBe(1);
     expect(clearCacheResult.structuredContent?.success).toBe(true);
     expect(fileStatusResult.structuredContent?.success).toBe(true);
     expect(fileStatusResult.structuredContent?.status).toBe('clean');

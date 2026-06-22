@@ -56,6 +56,17 @@ function toZeroBasedPoint(line: number, column: number): Parser.Point {
   };
 }
 
+function getTreeSitterLoadGuidance(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  const nodeMajorVersion = Number.parseInt(process.versions.node.split('.')[0] ?? '0', 10);
+
+  if (message.includes('No native build was found') && nodeMajorVersion >= 25) {
+    return ' Gebruik Node.js 20, 22 of 24 voor de gepubliceerde package; upstream tree-sitter levert momenteel geen compatibele native build voor Node 25.';
+  }
+
+  return '';
+}
+
 export class TreeSitterEngine {
   private static parserConstructor: ParserConstructor | undefined;
   private static readonly parserCache = new Map<SupportedTreeSitterLanguage, Parser>();
@@ -81,7 +92,7 @@ export class TreeSitterEngine {
       throw new Error(
         `Tree-sitter runtime kon niet worden geladen: ${
           error instanceof Error ? error.message : String(error)
-        }`,
+        }${getTreeSitterLoadGuidance(error)}`,
         { cause: error },
       );
     }

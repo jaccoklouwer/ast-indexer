@@ -14,27 +14,17 @@ import {
 } from '../src/structural-tools.js';
 import { TreeSitterEngine } from '../src/tree-sitter-engine.js';
 
-async function isTreeSitterAvailable(): Promise<boolean> {
-  try {
-    await import('tree-sitter');
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 describe('structural-tools', () => {
   let tempDir: string;
   let repoPath: string;
   let indexer: RepositoryIndexer;
   let engine: TreeSitterEngine;
-  let treeSitterAvailable: boolean;
 
   beforeAll(async () => {
-    treeSitterAvailable = await isTreeSitterAvailable();
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'ast-indexer-structural-tools-'));
     repoPath = path.join(tempDir, 'repo');
     await fs.mkdir(path.join(repoPath, 'src'), { recursive: true });
+    await fs.mkdir(path.join(repoPath, 'tests'), { recursive: true });
     await fs.writeFile(
       path.join(repoPath, 'src', 'math.ts'),
       [
@@ -50,6 +40,23 @@ describe('structural-tools', () => {
     await fs.writeFile(
       path.join(repoPath, 'src', 'consumer.ts'),
       ["import { add } from './math';", 'export const value = add(1, 2);'].join('\n'),
+    );
+    await fs.writeFile(
+      path.join(repoPath, 'tests', 'assertions.cs'),
+      [
+        'using FluentAssertions;',
+        '',
+        'namespace Demo.Tests;',
+        '',
+        'public class AssertionsTests',
+        '{',
+        '  public void UsesShould()',
+        '  {',
+        '    var actual = 42;',
+        '    actual.Should().Be(42);',
+        '  }',
+        '}',
+      ].join('\n'),
     );
 
     const git = simpleGit(repoPath);
@@ -69,13 +76,6 @@ describe('structural-tools', () => {
 
   it('voert structural search uit over een geindexeerde repository', async () => {
     const repositoryIndex = await indexer.indexRepository(repoPath);
-    if (!treeSitterAvailable) {
-      await expect(
-        structuralSearch(engine, repositoryIndex, '(arrow_function) @fn', 'typescript', 'math.ts'),
-      ).rejects.toThrow('Tree-sitter runtime');
-      return;
-    }
-
     const result = await structuralSearch(
       engine,
       repositoryIndex,
@@ -90,12 +90,6 @@ describe('structural-tools', () => {
   it('vindt scope, enclosing symbol en vergelijkbare nodes', async () => {
     const repositoryIndex = await indexer.indexRepository(repoPath);
     const mathFilePath = path.join(repoPath, 'src', 'math.ts');
-    if (!treeSitterAvailable) {
-      await expect(getScopeAtPosition(engine, mathFilePath, 5, 10)).rejects.toThrow(
-        'Tree-sitter runtime',
-      );
-      return;
-    }
 
     const scope = await getScopeAtPosition(engine, mathFilePath, 5, 10);
     const enclosingSymbol = await findEnclosingSymbol(engine, mathFilePath, 5, 10);
@@ -109,17 +103,38 @@ describe('structural-tools', () => {
   it('detecteert TODO comments en vergroot een selectie', async () => {
     const repositoryIndex = await indexer.indexRepository(repoPath);
     const mathFilePath = path.join(repoPath, 'src', 'math.ts');
-    if (!treeSitterAvailable) {
-      await expect(detectTodos(engine, repositoryIndex, 'math.ts')).rejects.toThrow(
-        'Tree-sitter runtime',
-      );
-      return;
-    }
-
     const todos = await detectTodos(engine, repositoryIndex, 'math.ts');
     const expandedSelection = await getExpandedSelection(engine, mathFilePath, 5, 19, 5, 27);
 
     expect(todos.count).toBe(1);
     expect(expandedSelection.expanded.type).toContain('binary_expression');
+  });
+
+  it('vindt C# .Should() call sites via structural search', async () => {
+    const repositoryIndex = await indexer.indexRepository(repoPath);
+
+    const result = await structuralSearch(
+      engine,
+      repositoryIndex,
+      [
+        '(invocation_expression',
+        '  function: (member_access_expression',
+        '    name: (identifier) @_method',
+        '    (#eq? @_method "Should"))',
+        ') @should-call',
+      ].join('\n'),
+      'csharp',
+      'tests',
+    );
+
+    expect(result.count).toBe(1);
+    expect(result.matches).toEqual([
+      expect.objectContaining({
+        captureName: 'should-call',
+        filePath: path.join(repoPath, 'tests', 'assertions.cs'),
+        nodeType: 'invocation_expression',
+        text: 'actual.Should()',
+      }),
+    ]);
   });
 });

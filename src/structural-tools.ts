@@ -7,6 +7,10 @@ function matchesFileName(filePath: string, fileName?: string): boolean {
   return !fileName || filePath.includes(fileName);
 }
 
+function isPublicCaptureName(captureName: string): boolean {
+  return !captureName.startsWith('_');
+}
+
 function isScopeNode(node: Parser.SyntaxNode): boolean {
   return (
     node.type === 'program' ||
@@ -59,7 +63,9 @@ export async function structuralSearch(
     const tree = await engine.parseFile(file.path);
 
     try {
-      const captures = (await engine.createQuery(file.path, querySource)).captures(tree.rootNode);
+      const captures = (await engine.createQuery(file.path, querySource))
+        .captures(tree.rootNode)
+        .filter((capture) => isPublicCaptureName(capture.name));
       matches.push(
         ...captures.map((capture) => ({
           filePath: file.path,

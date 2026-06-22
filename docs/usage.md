@@ -2,6 +2,10 @@
 
 ## Starting the server
 
+Supported runtime: Node.js 20, 22, or 24 for global, local, and `npx` installs of the published package.
+
+Node.js 25 is currently outside the supported range for the published package because upstream `tree-sitter` does not provide a compatible native build there.
+
 ### stdio (default)
 
 ```bash
@@ -200,6 +204,41 @@ Return symbol and file counts for an indexed repository.
 | Parameter        | Type   | Required | Description                |
 | ---------------- | ------ | -------- | -------------------------- |
 | `repositoryPath` | string | ✓        | Path to indexed repository |
+
+---
+
+### `get_ast`, `get_ast_node_at_position`, `get_ast_node_relatives`
+
+Inspect a Tree-sitter syntax tree for a single file. These tools are useful when you need the concrete node shape before writing a `structural_search` query.
+
+---
+
+### `structural_search`
+
+Run a Tree-sitter query over an indexed repository. This is the preferred route for syntactic call-site searches such as C# `.Should()` invocations, because `search_functions` only searches indexed definitions.
+
+| Parameter        | Type                                       | Required | Description                      |
+| ---------------- | ------------------------------------------ | -------- | -------------------------------- |
+| `repositoryPath` | string                                     | ✓        | Path to indexed repository       |
+| `query`          | string                                     | ✓        | Tree-sitter query string         |
+| `language`       | `javascript\|typescript\|tsx\|csharp\|sql` |          | Restrict results to one language |
+| `fileName`       | string                                     |          | File path filter                 |
+
+Example: find C# FluentAssertions `.Should()` call sites in test files.
+
+```json
+{
+  "repositoryPath": "/path/to/repo",
+  "language": "csharp",
+  "fileName": "tests",
+  "query": "(invocation_expression function: (member_access_expression name: (identifier) @_method (#eq? @_method \"Should\"))) @should-call"
+}
+```
+
+Notes:
+
+- Captures whose names start with `_` are treated as internal helper captures and are not returned in the result payload.
+- For C# repositories, `index_repository` still provides regex-based definition indexing; Tree-sitter tools cover syntax inspection and call-site searches.
 
 ---
 
