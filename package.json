@@ -11,6 +11,7 @@
   },
   "files": [
     "dist",
+    "mcp-manifest.json",
     "README.md",
     "LICENSE"
   ],

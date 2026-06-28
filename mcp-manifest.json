@@ -1,0 +1,424 @@
+{
+  "manifestVersion": "1.0",
+  "server": {
+    "name": "ast-indexer",
+    "packageName": "@klouwer94/ast-indexer",
+    "version": "0.2.1",
+    "description": "MCP Server for indexing Git repositories using AST parsing",
+    "homepage": "https://github.com/jaccoklouwer/ast-indexer#readme",
+    "repository": "https://github.com/jaccoklouwer/ast-indexer",
+    "license": "ISC"
+  },
+  "transports": {
+    "stdio": {
+      "command": "npx",
+      "args": ["-y", "@klouwer94/ast-indexer@latest"],
+      "alternatives": [
+        {
+          "command": "ast-indexer",
+          "description": "Gebruik deze variant als de binary op PATH staat"
+        }
+      ]
+    },
+    "http": {
+      "url": "http://localhost:3847/mcp"
+    }
+  },
+  "tools": [
+    {
+      "name": "ast_indexer_analyze_repository",
+      "kind": "orchestrator",
+      "description": "Entry point: indexeer repository en adviseer welke vervolgstappen of tools nodig zijn.",
+      "useCases": [
+        "Startpunt wanneer nog niet duidelijk is welke tool relevant is",
+        "Snelle intake van een repository-vraag in natuurlijke taal"
+      ],
+      "inputSchema": {
+        "type": "object",
+        "required": ["repositoryPath", "question"],
+        "properties": {
+          "repositoryPath": {
+            "type": "string",
+            "description": "Absoluut pad naar de Git repository"
+          },
+          "question": {
+            "type": "string",
+            "description": "Vraag in natuurlijke taal"
+          },
+          "includePatterns": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "excludePatterns": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        }
+      },
+      "workflow": [
+        "ast_indexer_index_repository",
+        "ast_indexer_get_statistics",
+        "ast_indexer_search_functions",
+        "ast_indexer_search_classes",
+        "ast_indexer_structural_search"
+      ]
+    },
+    {
+      "name": "ast_indexer_index_repository",
+      "serverTool": "index_repository",
+      "description": "Indexeer een Git repository en cache parse-resultaten per bestand.",
+      "inputSchema": {
+        "type": "object",
+        "required": ["repositoryPath"],
+        "properties": {
+          "repositoryPath": { "type": "string" },
+          "includePatterns": { "type": "array", "items": { "type": "string" } },
+          "excludePatterns": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    {
+      "name": "ast_indexer_search_functions",
+      "serverTool": "search_functions",
+      "description": "Zoek functies in een geindexeerde repository.",
+      "inputSchema": {
+        "type": "object",
+        "required": ["repositoryPath"],
+        "properties": {
+          "repositoryPath": { "type": "string" },
+          "functionName": { "type": "string" },
+          "fileName": { "type": "string" },
+          "caseInsensitive": { "type": "boolean" }
+        }
+      }
+    },
+    {
+      "name": "ast_indexer_search_classes",
+      "serverTool": "search_classes",
+      "description": "Zoek classes in een geindexeerde repository.",
+      "inputSchema": {
+        "type": "object",
+        "required": ["repositoryPath"],
+        "properties": {
+          "repositoryPath": { "type": "string" },
+          "className": { "type": "string" },
+          "fileName": { "type": "string" },
+          "caseInsensitive": { "type": "boolean" }
+        }
+      }
+    },
+    {
+      "name": "ast_indexer_search_imports",
+      "serverTool": "search_imports",
+      "description": "Zoek imports in een geindexeerde repository.",
+      "inputSchema": {
+        "type": "object",
+        "required": ["repositoryPath"],
+        "properties": {
+          "repositoryPath": { "type": "string" },
+          "moduleName": { "type": "string" },
+          "fileName": { "type": "string" },
+          "caseInsensitive": { "type": "boolean" }
+        }
+      }
+    },
+    {
+      "name": "ast_indexer_get_statistics",
+      "serverTool": "get_statistics",
+      "description": "Haal statistieken op van een geindexeerde repository.",
+      "inputSchema": {
+        "type": "object",
+        "required": ["repositoryPath"],
+        "properties": {
+          "repositoryPath": { "type": "string" }
+        }
+      }
+    },
+    {
+      "name": "ast_indexer_search_sql_tables",
+      "serverTool": "search_sql_tables",
+      "description": "Zoek SQL tables in een geindexeerde repository.",
+      "inputSchema": {
+        "type": "object",
+        "required": ["repositoryPath"],
+        "properties": {
+          "repositoryPath": { "type": "string" },
+          "tableName": { "type": "string" },
+          "fileName": { "type": "string" },
+          "caseInsensitive": { "type": "boolean" }
+        }
+      }
+    },
+    {
+      "name": "ast_indexer_search_sql_views",
+      "serverTool": "search_sql_views",
+      "description": "Zoek SQL views in een geindexeerde repository.",
+      "inputSchema": {
+        "type": "object",
+        "required": ["repositoryPath"],
+        "properties": {
+          "repositoryPath": { "type": "string" },
+          "viewName": { "type": "string" },
+          "fileName": { "type": "string" },
+          "caseInsensitive": { "type": "boolean" }
+        }
+      }
+    },
+    {
+      "name": "ast_indexer_search_sql_triggers",
+      "serverTool": "search_sql_triggers",
+      "description": "Zoek SQL triggers in een geindexeerde repository.",
+      "inputSchema": {
+        "type": "object",
+        "required": ["repositoryPath"],
+        "properties": {
+          "repositoryPath": { "type": "string" },
+          "triggerName": { "type": "string" },
+          "fileName": { "type": "string" },
+          "caseInsensitive": { "type": "boolean" }
+        }
+      }
+    },
+    {
+      "name": "ast_indexer_search_sql_indexes",
+      "serverTool": "search_sql_indexes",
+      "description": "Zoek SQL indexes in een geindexeerde repository.",
+      "inputSchema": {
+        "type": "object",
+        "required": ["repositoryPath"],
+        "properties": {
+          "repositoryPath": { "type": "string" },
+          "indexName": { "type": "string" },
+          "fileName": { "type": "string" },
+          "caseInsensitive": { "type": "boolean" }
+        }
+      }
+    },
+    {
+      "name": "ast_indexer_get_ast",
+      "serverTool": "get_ast",
+      "description": "Geef een Tree-sitter syntaxboom terug voor een bestand.",
+      "inputSchema": {
+        "type": "object",
+        "required": ["filePath"],
+        "properties": {
+          "filePath": { "type": "string" },
+          "maxDepth": { "type": "integer", "minimum": 1, "maximum": 25 },
+          "namedOnly": { "type": "boolean" }
+        }
+      }
+    },
+    {
+      "name": "ast_indexer_get_ast_node_at_position",
+      "serverTool": "get_ast_node_at_position",
+      "description": "Zoek de kleinste named Tree-sitter node op een positie.",
+      "inputSchema": {
+        "type": "object",
+        "required": ["filePath", "line", "column"],
+        "properties": {
+          "filePath": { "type": "string" },
+          "line": { "type": "integer", "minimum": 1 },
+          "column": { "type": "integer", "minimum": 1 }
+        }
+      }
+    },
+    {
+      "name": "ast_indexer_get_ast_node_relatives",
+      "serverTool": "get_ast_node_relatives",
+      "description": "Geef parent, children en siblings van een Tree-sitter node terug.",
+      "inputSchema": {
+        "type": "object",
+        "required": ["filePath", "line", "column"],
+        "properties": {
+          "filePath": { "type": "string" },
+          "line": { "type": "integer", "minimum": 1 },
+          "column": { "type": "integer", "minimum": 1 },
+          "includeParent": { "type": "boolean" },
+          "includeSiblings": { "type": "boolean" }
+        }
+      }
+    },
+    {
+      "name": "ast_indexer_get_syntax_errors",
+      "serverTool": "get_syntax_errors",
+      "description": "Zoek syntaxfouten en missing nodes in een bestand.",
+      "inputSchema": {
+        "type": "object",
+        "required": ["filePath"],
+        "properties": {
+          "filePath": { "type": "string" }
+        }
+      }
+    },
+    {
+      "name": "ast_indexer_get_highlight_captures",
+      "serverTool": "get_highlight_captures",
+      "description": "Voer een Tree-sitter query uit en geef captures terug.",
+      "inputSchema": {
+        "type": "object",
+        "required": ["filePath", "query"],
+        "properties": {
+          "filePath": { "type": "string" },
+          "query": { "type": "string" }
+        }
+      }
+    },
+    {
+      "name": "ast_indexer_get_folding_ranges",
+      "serverTool": "get_folding_ranges",
+      "description": "Bepaal folding ranges op basis van de Tree-sitter syntaxboom.",
+      "inputSchema": {
+        "type": "object",
+        "required": ["filePath"],
+        "properties": {
+          "filePath": { "type": "string" }
+        }
+      }
+    },
+    {
+      "name": "ast_indexer_get_document_symbols",
+      "serverTool": "get_document_symbols",
+      "description": "Geef een outline van symbolen in een bestand terug.",
+      "inputSchema": {
+        "type": "object",
+        "required": ["filePath"],
+        "properties": {
+          "filePath": { "type": "string" }
+        }
+      }
+    },
+    {
+      "name": "ast_indexer_structural_search",
+      "serverTool": "structural_search",
+      "description": "Voer een Tree-sitter query uit over een geindexeerde repository.",
+      "inputSchema": {
+        "type": "object",
+        "required": ["repositoryPath", "query"],
+        "properties": {
+          "repositoryPath": { "type": "string" },
+          "query": { "type": "string" },
+          "language": {
+            "type": "string",
+            "enum": ["javascript", "typescript", "tsx", "csharp", "sql"]
+          },
+          "fileName": { "type": "string" }
+        }
+      }
+    },
+    {
+      "name": "ast_indexer_get_scope_at_position",
+      "serverTool": "get_scope_at_position",
+      "description": "Geef de enclosing scopes van een positie terug.",
+      "inputSchema": {
+        "type": "object",
+        "required": ["filePath", "line", "column"],
+        "properties": {
+          "filePath": { "type": "string" },
+          "line": { "type": "integer", "minimum": 1 },
+          "column": { "type": "integer", "minimum": 1 }
+        }
+      }
+    },
+    {
+      "name": "ast_indexer_find_enclosing_symbol",
+      "serverTool": "find_enclosing_symbol",
+      "description": "Zoek het dichtstbijzijnde omhullende symbool op een positie.",
+      "inputSchema": {
+        "type": "object",
+        "required": ["filePath", "line", "column"],
+        "properties": {
+          "filePath": { "type": "string" },
+          "line": { "type": "integer", "minimum": 1 },
+          "column": { "type": "integer", "minimum": 1 }
+        }
+      }
+    },
+    {
+      "name": "ast_indexer_find_similar_nodes",
+      "serverTool": "find_similar_nodes",
+      "description": "Zoek nodes met een vergelijkbare structuur in een repository.",
+      "inputSchema": {
+        "type": "object",
+        "required": ["repositoryPath", "filePath", "line", "column"],
+        "properties": {
+          "repositoryPath": { "type": "string" },
+          "filePath": { "type": "string" },
+          "line": { "type": "integer", "minimum": 1 },
+          "column": { "type": "integer", "minimum": 1 },
+          "fileName": { "type": "string" }
+        }
+      }
+    },
+    {
+      "name": "ast_indexer_detect_todos",
+      "serverTool": "detect_todos",
+      "description": "Detecteer TODO, FIXME, HACK, NOTE en XXX comments.",
+      "inputSchema": {
+        "type": "object",
+        "required": ["repositoryPath"],
+        "properties": {
+          "repositoryPath": { "type": "string" },
+          "fileName": { "type": "string" }
+        }
+      }
+    },
+    {
+      "name": "ast_indexer_get_expand_selection",
+      "serverTool": "get_expand_selection",
+      "description": "Vergroot een selectie naar de kleinste omhullende named node.",
+      "inputSchema": {
+        "type": "object",
+        "required": ["filePath", "startLine", "startColumn", "endLine", "endColumn"],
+        "properties": {
+          "filePath": { "type": "string" },
+          "startLine": { "type": "integer", "minimum": 1 },
+          "startColumn": { "type": "integer", "minimum": 1 },
+          "endLine": { "type": "integer", "minimum": 1 },
+          "endColumn": { "type": "integer", "minimum": 1 }
+        }
+      }
+    },
+    {
+      "name": "ast_indexer_get_cross_file_references",
+      "serverTool": "get_cross_file_references",
+      "description": "Zoek imports, exports en definities van een symbool over meerdere bestanden.",
+      "inputSchema": {
+        "type": "object",
+        "required": ["repositoryPath", "symbolName"],
+        "properties": {
+          "repositoryPath": { "type": "string" },
+          "symbolName": { "type": "string" },
+          "caseInsensitive": { "type": "boolean" }
+        }
+      }
+    },
+    {
+      "name": "ast_indexer_get_file_status",
+      "serverTool": "get_file_status",
+      "description": "Herindexeer de repository en geef daarna de Git working tree status van een bestand terug.",
+      "inputSchema": {
+        "type": "object",
+        "required": ["repositoryPath", "filePath"],
+        "properties": {
+          "repositoryPath": { "type": "string" },
+          "filePath": { "type": "string" }
+        }
+      }
+    },
+    {
+      "name": "ast_indexer_clear_cache",
+      "serverTool": "clear_cache",
+      "description": "Wis de memory- en disk-cache van een repository of van alle repositories.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "repositoryPath": { "type": "string" }
+        }
+      }
+    }
+  ],
+  "compatibility": {
+    "toolNamePrefix": "ast_indexer_",
+    "serverToolMapping": "Gebruik serverTool voor de daadwerkelijke toolnaam in de MCP server"
+  }
+}
