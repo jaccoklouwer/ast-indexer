@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.2.2](https://github.com/jaccoklouwer/ast-indexer/compare/v0.2.1...v0.2.2) (2026-06-28)
+
+
+### Features
+
+* add mcp-manifest.json to package files ([21c7911](https://github.com/jaccoklouwer/ast-indexer/commit/21c79113517be0b6ec672d8adf2575c398b53b4a))
+
 ### [0.2.1](https://github.com/jaccoklouwer/ast-indexer/compare/v0.1.22...v0.2.1) (2026-06-22)
 
 ## 0.2.0 (2026-06-22)
