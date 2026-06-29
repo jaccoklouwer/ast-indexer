@@ -1,0 +1,45 @@
+version: 2
+updates:
+  - package-ecosystem: 'npm'
+    directory: '/'
+    schedule:
+      interval: 'daily'
+      time: '07:00'
+      timezone: 'Europe/Amsterdam'
+    open-pull-requests-limit: 5
+    labels:
+      - 'dependencies'
+    assignees:
+      - 'jaccoklouwer'
+    commit-message:
+      prefix: 'deps'
+      include: 'scope'
+    groups:
+      typescript-toolchain:
+        patterns:
+          - 'typescript'
+          - '@types/node'
+          - 'typescript-eslint'
+          - '@typescript-eslint/*'
+      testing:
+        patterns:
+          - 'vitest'
+          - '@vitest/*'
+          - 'vite'
+      lint-format:
+        patterns:
+          - 'eslint'
+          - '@eslint/*'
+          - 'eslint-*'
+          - 'prettier'
+      release-tooling:
+        patterns:
+          - 'git-cz'
+          - 'standard-version'
+      mcp-runtime:
+        patterns:
+          - '@modelcontextprotocol/sdk'
+      tree-sitter-native:
+        patterns:
+          - 'tree-sitter'
+          - 'tree-sitter-*'

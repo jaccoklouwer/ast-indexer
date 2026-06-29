@@ -28,7 +28,7 @@
     "url": "https://github.com/jaccoklouwer/ast-indexer/issues"
   },
   "engines": {
-    "node": ">=20 <25"
+    "node": ">=20"
   },
   "scripts": {
     "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",

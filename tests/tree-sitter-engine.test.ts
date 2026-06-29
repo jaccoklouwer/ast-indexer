@@ -3,6 +3,9 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { TreeSitterEngine } from '../src/tree-sitter-engine.js';
+import { hasTreeSitterRuntime } from './tree-sitter-runtime.js';
+
+const skipNativeTreeSitterTests = !hasTreeSitterRuntime;
 
 describe('TreeSitterEngine', () => {
   let tempDir: string;
@@ -21,17 +24,20 @@ describe('TreeSitterEngine', () => {
     await fs.rm(tempDir, { recursive: true, force: true });
   });
 
-  it('parseert een TypeScript bestand en serialiseert de root node', async () => {
-    const engine = new TreeSitterEngine();
-    const tree = await engine.parseFile(sampleFilePath);
-    const serializedRoot = engine.serializeNode(tree.rootNode, 1, true);
+  it.skipIf(skipNativeTreeSitterTests)(
+    'parseert een TypeScript bestand en serialiseert de root node',
+    async () => {
+      const engine = new TreeSitterEngine();
+      const tree = await engine.parseFile(sampleFilePath);
+      const serializedRoot = engine.serializeNode(tree.rootNode, 1, true);
 
-    expect(tree.rootNode.type).toBe('program');
-    expect(serializedRoot.type).toBe('program');
-    expect(serializedRoot.children.length).toBeGreaterThan(0);
-  });
+      expect(tree.rootNode.type).toBe('program');
+      expect(serializedRoot.type).toBe('program');
+      expect(serializedRoot.children.length).toBeGreaterThan(0);
+    },
+  );
 
-  it('werkt een bestaande tree incrementeel bij', async () => {
+  it.skipIf(skipNativeTreeSitterTests)('werkt een bestaande tree incrementeel bij', async () => {
     const engine = new TreeSitterEngine();
     await engine.parseFile(sampleFilePath);
 

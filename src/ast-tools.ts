@@ -1,10 +1,27 @@
+import * as fs from 'node:fs/promises';
+import * as path from 'node:path';
 import type Parser from 'tree-sitter';
+import * as ts from 'typescript';
 import { TreeSitterEngine } from './tree-sitter-engine.js';
 import { getNodeName, isSymbolNode, walkSyntaxTree } from './tree-sitter-utils.js';
 
 interface SerializedNodeContext {
   engine: TreeSitterEngine;
   node: Parser.SyntaxNode;
+}
+
+interface DocumentSymbolInfo {
+  name: string;
+  kind: string;
+  startLine: number;
+  startColumn: number;
+  endLine: number;
+  endColumn: number;
+  children: DocumentSymbolInfo[];
+}
+
+function createErrorWithCause(message: string, cause: unknown): Error {
+  return cause instanceof Error ? new Error(message, { cause }) : new Error(message);
 }
 
 function serializeNode(context: SerializedNodeContext) {
@@ -42,24 +59,8 @@ function isInterestingFoldingNode(node: Parser.SyntaxNode): boolean {
   );
 }
 
-function buildDocumentSymbols(node: Parser.SyntaxNode): Array<{
-  name: string;
-  kind: string;
-  startLine: number;
-  startColumn: number;
-  endLine: number;
-  endColumn: number;
-  children: ReturnType<typeof buildDocumentSymbols>;
-}> {
-  const symbols: Array<{
-    name: string;
-    kind: string;
-    startLine: number;
-    startColumn: number;
-    endLine: number;
-    endColumn: number;
-    children: ReturnType<typeof buildDocumentSymbols>;
-  }> = [];
+function buildDocumentSymbols(node: Parser.SyntaxNode): DocumentSymbolInfo[] {
+  const symbols: DocumentSymbolInfo[] = [];
 
   for (const child of node.namedChildren) {
     const children = buildDocumentSymbols(child);
@@ -231,13 +232,133 @@ export async function getFoldingRanges(engine: TreeSitterEngine, filePath: strin
   };
 }
 
-export async function getDocumentSymbols(engine: TreeSitterEngine, filePath: string) {
+async function getDocumentSymbolsFromTreeSitter(
+  engine: TreeSitterEngine,
+  filePath: string,
+): Promise<DocumentSymbolInfo[]> {
   const tree = await engine.parseFile(filePath);
-  const symbols = buildDocumentSymbols(tree.rootNode);
+  return buildDocumentSymbols(tree.rootNode);
+}
 
-  return {
+function getDocumentSymbolsFromTypeScript(
+  filePath: string,
+  sourceText: string,
+): DocumentSymbolInfo[] {
+  const sourceFile = ts.createSourceFile(
     filePath,
-    count: symbols.length,
-    symbols,
-  };
+    sourceText,
+    ts.ScriptTarget.Latest,
+    true,
+    /\.tsx?$/i.test(filePath) ? ts.ScriptKind.TS : ts.ScriptKind.JS,
+  );
+
+  const symbols: DocumentSymbolInfo[] = [];
+
+  function visit(node: ts.Node): void {
+    const kind = ts.SyntaxKind[node.kind];
+
+    if (
+      ts.isClassDeclaration(node) ||
+      ts.isFunctionDeclaration(node) ||
+      ts.isVariableDeclaration(node) ||
+      ts.isInterfaceDeclaration(node) ||
+      ts.isTypeAliasDeclaration(node) ||
+      ts.isEnumDeclaration(node)
+    ) {
+      const sourceFile = node.getSourceFile();
+      const { line: startLine, character: startColumn } = sourceFile.getLineAndCharacterOfPosition(
+        node.getStart(),
+      );
+      const { line: endLine, character: endColumn } = sourceFile.getLineAndCharacterOfPosition(
+        node.getEnd(),
+      );
+
+      const name =
+        (node as ts.NamedDeclaration).name?.getText(sourceFile) ||
+        (node as ts.VariableDeclaration).name.getText(sourceFile) ||
+        'unnamed';
+
+      symbols.push({
+        name,
+        kind,
+        startLine: startLine + 1,
+        startColumn: startColumn + 1,
+        endLine: endLine + 1,
+        endColumn: endColumn + 1,
+        children: [],
+      });
+    }
+
+    ts.forEachChild(node, visit);
+  }
+
+  visit(sourceFile);
+  return symbols;
+}
+
+export async function getDocumentSymbols(engine: TreeSitterEngine, filePath: string) {
+  const extension = path.extname(filePath).toLowerCase();
+  const isTypeScriptFile = ['.ts', '.tsx', '.js', '.jsx', '.mts', '.mjs', '.cts', '.cjs'].includes(
+    extension,
+  );
+  const nodeMajorVersion = Number.parseInt(process.versions.node.split('.')[0] ?? '0', 10);
+
+  // On Node 25+, prefer TypeScript Compiler API fallback to avoid Tree-sitter issues
+  if (isTypeScriptFile && nodeMajorVersion >= 25) {
+    try {
+      const content = await fs.readFile(filePath, 'utf8');
+      const symbols = getDocumentSymbolsFromTypeScript(filePath, content);
+      return {
+        filePath,
+        count: symbols.length,
+        symbols,
+      };
+    } catch (fallbackError) {
+      // If fallback fails, try Tree-sitter anyway
+      try {
+        const symbols = await getDocumentSymbolsFromTreeSitter(engine, filePath);
+        return {
+          filePath,
+          count: symbols.length,
+          symbols,
+        };
+      } catch {
+        throw new Error(
+          `Kon symbolen niet ophalen uit ${filePath} op Node ${nodeMajorVersion}: TypeScript fallback faalde (${fallbackError instanceof Error ? fallbackError.message : String(fallbackError)})`,
+          { cause: fallbackError instanceof Error ? fallbackError : undefined },
+        );
+      }
+    }
+  }
+
+  // Try Tree-sitter first for other files, with fallback for TS/JS
+  try {
+    const symbols = await getDocumentSymbolsFromTreeSitter(engine, filePath);
+    return {
+      filePath,
+      count: symbols.length,
+      symbols,
+    };
+  } catch (error) {
+    // Fallback: use TypeScript Compiler API for TS/JS files
+    if (isTypeScriptFile) {
+      try {
+        const content = await fs.readFile(filePath, 'utf8');
+        const symbols = getDocumentSymbolsFromTypeScript(filePath, content);
+        return {
+          filePath,
+          count: symbols.length,
+          symbols,
+        };
+      } catch (fallbackError) {
+        throw createErrorWithCause(
+          `Kon symbolen niet ophalen uit ${filePath}: Tree-sitter faalde en TypeScript fallback ook: ${fallbackError instanceof Error ? fallbackError.message : String(fallbackError)}`,
+          error,
+        );
+      }
+    }
+
+    // For non-TS/JS files, propagate the original error
+    throw error;
+  }
 }

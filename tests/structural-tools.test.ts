@@ -13,6 +13,9 @@ import {
   structuralSearch,
 } from '../src/structural-tools.js';
 import { TreeSitterEngine } from '../src/tree-sitter-engine.js';
+import { hasTreeSitterRuntime } from './tree-sitter-runtime.js';
+
+const skipNativeTreeSitterTests = !hasTreeSitterRuntime;
 
 describe('structural-tools', () => {
   let tempDir: string;
@@ -74,67 +77,79 @@ describe('structural-tools', () => {
     await fs.rm(tempDir, { recursive: true, force: true });
   });
 
-  it('voert structural search uit over een geindexeerde repository', async () => {
-    const repositoryIndex = await indexer.indexRepository(repoPath);
-    const result = await structuralSearch(
-      engine,
-      repositoryIndex,
-      '(arrow_function) @fn',
-      'typescript',
-      'math.ts',
-    );
+  it.skipIf(skipNativeTreeSitterTests)(
+    'voert structural search uit over een geindexeerde repository',
+    async () => {
+      const repositoryIndex = await indexer.indexRepository(repoPath);
+      const result = await structuralSearch(
+        engine,
+        repositoryIndex,
+        '(arrow_function) @fn',
+        'typescript',
+        'math.ts',
+      );
 
-    expect(result.count).toBeGreaterThanOrEqual(2);
-  });
+      expect(result.count).toBeGreaterThanOrEqual(2);
+    },
+  );
 
-  it('vindt scope, enclosing symbol en vergelijkbare nodes', async () => {
-    const repositoryIndex = await indexer.indexRepository(repoPath);
-    const mathFilePath = path.join(repoPath, 'src', 'math.ts');
+  it.skipIf(skipNativeTreeSitterTests)(
+    'vindt scope, enclosing symbol en vergelijkbare nodes',
+    async () => {
+      const repositoryIndex = await indexer.indexRepository(repoPath);
+      const mathFilePath = path.join(repoPath, 'src', 'math.ts');
 
-    const scope = await getScopeAtPosition(engine, mathFilePath, 5, 10);
-    const enclosingSymbol = await findEnclosingSymbol(engine, mathFilePath, 5, 10);
-    const similarNodes = await findSimilarNodes(engine, repositoryIndex, mathFilePath, 2, 20);
+      const scope = await getScopeAtPosition(engine, mathFilePath, 5, 10);
+      const enclosingSymbol = await findEnclosingSymbol(engine, mathFilePath, 5, 10);
+      const similarNodes = await findSimilarNodes(engine, repositoryIndex, mathFilePath, 2, 20);
 
-    expect(scope.scopes.length).toBeGreaterThan(0);
-    expect(enclosingSymbol.symbol?.name).toBe('wrap');
-    expect(similarNodes.count).toBeGreaterThanOrEqual(2);
-  });
+      expect(scope.scopes.length).toBeGreaterThan(0);
+      expect(enclosingSymbol.symbol?.name).toBe('wrap');
+      expect(similarNodes.count).toBeGreaterThanOrEqual(2);
+    },
+  );
 
-  it('detecteert TODO comments en vergroot een selectie', async () => {
-    const repositoryIndex = await indexer.indexRepository(repoPath);
-    const mathFilePath = path.join(repoPath, 'src', 'math.ts');
-    const todos = await detectTodos(engine, repositoryIndex, 'math.ts');
-    const expandedSelection = await getExpandedSelection(engine, mathFilePath, 5, 19, 5, 27);
+  it.skipIf(skipNativeTreeSitterTests)(
+    'detecteert TODO comments en vergroot een selectie',
+    async () => {
+      const repositoryIndex = await indexer.indexRepository(repoPath);
+      const mathFilePath = path.join(repoPath, 'src', 'math.ts');
+      const todos = await detectTodos(engine, repositoryIndex, 'math.ts');
+      const expandedSelection = await getExpandedSelection(engine, mathFilePath, 5, 19, 5, 27);
 
-    expect(todos.count).toBe(1);
-    expect(expandedSelection.expanded.type).toContain('binary_expression');
-  });
+      expect(todos.count).toBe(1);
+      expect(expandedSelection.expanded.type).toContain('binary_expression');
+    },
+  );
 
-  it('vindt C# .Should() call sites via structural search', async () => {
-    const repositoryIndex = await indexer.indexRepository(repoPath);
+  it.skipIf(skipNativeTreeSitterTests)(
+    'vindt C# .Should() call sites via structural search',
+    async () => {
+      const repositoryIndex = await indexer.indexRepository(repoPath);
 
-    const result = await structuralSearch(
-      engine,
-      repositoryIndex,
-      [
-        '(invocation_expression',
-        '  function: (member_access_expression',
-        '    name: (identifier) @_method',
-        '    (#eq? @_method "Should"))',
-        ') @should-call',
-      ].join('\n'),
-      'csharp',
-      'tests',
-    );
+      const result = await structuralSearch(
+        engine,
+        repositoryIndex,
+        [
+          '(invocation_expression',
+          '  function: (member_access_expression',
+          '    name: (identifier) @_method',
+          '    (#eq? @_method "Should"))',
+          ') @should-call',
+        ].join('\n'),
+        'csharp',
+        'tests',
+      );
 
-    expect(result.count).toBe(1);
-    expect(result.matches).toEqual([
-      expect.objectContaining({
-        captureName: 'should-call',
-        filePath: path.join(repoPath, 'tests', 'assertions.cs'),
-        nodeType: 'invocation_expression',
-        text: 'actual.Should()',
-      }),
-    ]);
-  });
+      expect(result.count).toBe(1);
+      expect(result.matches).toEqual([
+        expect.objectContaining({
+          captureName: 'should-call',
+          filePath: path.join(repoPath, 'tests', 'assertions.cs'),
+          nodeType: 'invocation_expression',
+          text: 'actual.Should()',
+        }),
+      ]);
+    },
+  );
 });

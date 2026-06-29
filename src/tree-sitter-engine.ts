@@ -61,7 +61,7 @@ function getTreeSitterLoadGuidance(error: unknown): string {
   const nodeMajorVersion = Number.parseInt(process.versions.node.split('.')[0] ?? '0', 10);
 
   if (message.includes('No native build was found') && nodeMajorVersion >= 25) {
-    return ' Gebruik Node.js 20, 22 of 24 voor de gepubliceerde package; upstream tree-sitter levert momenteel geen compatibele native build voor Node 25.';
+    return ' Node.js 25 wordt gexperimenteel ondersteund met fallbacks. Voor optimale performance, gebruik Node.js 20, 22 of 24. Voor AST-analysefuncties (get_document_symbols, etc.) zal automatisch naar TypeScript Compiler API worden gevallen voor TS/JS-bestanden.';
   }
 
   return '';

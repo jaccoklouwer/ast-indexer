@@ -4,8 +4,11 @@ import * as path from 'node:path';
 import { simpleGit } from 'simple-git';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { RepositoryIndexer } from '../src/indexer.js';
-import { TreeSitterEngine } from '../src/tree-sitter-engine.js';
 import { createCommonToolDefinitions } from '../src/tool-registry.js';
+import { TreeSitterEngine } from '../src/tree-sitter-engine.js';
+import { hasTreeSitterRuntime } from './tree-sitter-runtime.js';
+
+const skipNativeTreeSitterTests = !hasTreeSitterRuntime;
 
 function getTools() {
   return Object.fromEntries(
@@ -67,47 +70,50 @@ describe('MCP server tool handlers', () => {
     await fs.rm(tempDir, { recursive: true, force: true });
   });
 
-  it('voert index-, zoek-, reference- en cache-tools succesvol uit', async () => {
-    const tools = getTools();
+  it.skipIf(skipNativeTreeSitterTests)(
+    'voert index-, zoek-, reference- en cache-tools succesvol uit',
+    async () => {
+      const tools = getTools();
 
-    const indexResult = await tools.index_repository.handler({ repositoryPath: repoPath });
-    const functionResult = await tools.search_functions.handler({
-      repositoryPath: repoPath,
-      functionName: 'add',
-    });
-    const statisticsResult = await tools.get_statistics.handler({ repositoryPath: repoPath });
-    const crossFileReferenceResult = await tools.get_cross_file_references.handler({
-      repositoryPath: repoPath,
-      symbolName: 'add',
-    });
-    const structuralSearchResult = await tools.structural_search.handler({
-      repositoryPath: repoPath,
-      language: 'csharp',
-      fileName: 'tests',
-      query: [
-        '(invocation_expression',
-        '  function: (member_access_expression',
-        '    name: (identifier) @_method',
-        '    (#eq? @_method "Should"))',
-        ') @should-call',
-      ].join('\n'),
-    });
-    const clearCacheResult = await tools.clear_cache.handler({ repositoryPath: repoPath });
-    const fileStatusResult = await tools.get_file_status.handler({
-      repositoryPath: repoPath,
-      filePath: sourceFilePath,
-    });
+      const indexResult = await tools.index_repository.handler({ repositoryPath: repoPath });
+      const functionResult = await tools.search_functions.handler({
+        repositoryPath: repoPath,
+        functionName: 'add',
+      });
+      const statisticsResult = await tools.get_statistics.handler({ repositoryPath: repoPath });
+      const crossFileReferenceResult = await tools.get_cross_file_references.handler({
+        repositoryPath: repoPath,
+        symbolName: 'add',
+      });
+      const structuralSearchResult = await tools.structural_search.handler({
+        repositoryPath: repoPath,
+        language: 'csharp',
+        fileName: 'tests',
+        query: [
+          '(invocation_expression',
+          '  function: (member_access_expression',
+          '    name: (identifier) @_method',
+          '    (#eq? @_method "Should"))',
+          ') @should-call',
+        ].join('\n'),
+      });
+      const clearCacheResult = await tools.clear_cache.handler({ repositoryPath: repoPath });
+      const fileStatusResult = await tools.get_file_status.handler({
+        repositoryPath: repoPath,
+        filePath: sourceFilePath,
+      });
 
-    expect(indexResult.structuredContent?.success).toBe(true);
-    expect(functionResult.structuredContent?.count).toBe(1);
-    expect(statisticsResult.structuredContent?.success).toBe(true);
-    expect(crossFileReferenceResult.structuredContent?.count).toBeGreaterThan(0);
-    expect(structuralSearchResult.structuredContent?.count).toBe(1);
-    expect(clearCacheResult.structuredContent?.success).toBe(true);
-    expect(fileStatusResult.structuredContent?.success).toBe(true);
-    expect(fileStatusResult.structuredContent?.status).toBe('clean');
-    expect(fileStatusResult.structuredContent?.modified).toBe(false);
-  });
+      expect(indexResult.structuredContent?.success).toBe(true);
+      expect(functionResult.structuredContent?.count).toBe(1);
+      expect(statisticsResult.structuredContent?.success).toBe(true);
+      expect(crossFileReferenceResult.structuredContent?.count).toBeGreaterThan(0);
+      expect(structuralSearchResult.structuredContent?.count).toBe(1);
+      expect(clearCacheResult.structuredContent?.success).toBe(true);
+      expect(fileStatusResult.structuredContent?.success).toBe(true);
+      expect(fileStatusResult.structuredContent?.status).toBe('clean');
+      expect(fileStatusResult.structuredContent?.modified).toBe(false);
+    },
+  );
 
   it('geeft nette fouten terug voor ongeindexeerde of mislukte tool-aanroepen', async () => {
     const tools = getTools();
