@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.2.5](https://github.com/jaccoklouwer/ast-indexer/compare/v0.2.4...v0.2.5) (2026-06-30)
+
+
+### Bug Fixes
+
+* **lockfile:** remove duplicated pnpm lockfile entries ([dc3f44e](https://github.com/jaccoklouwer/ast-indexer/commit/dc3f44ecc31358f3710aec303e980f5a03533e6a))
+
 ### [0.2.4](https://github.com/jaccoklouwer/ast-indexer/compare/v0.2.3...v0.2.4) (2026-06-30)
 
 ### [0.2.3](https://github.com/jaccoklouwer/ast-indexer/compare/v0.2.2...v0.2.3) (2026-06-29)
