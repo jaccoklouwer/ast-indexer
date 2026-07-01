@@ -3,7 +3,7 @@
   "server": {
     "name": "ast-indexer",
     "packageName": "@klouwer94/ast-indexer",
-    "version": "0.2.1",
+    "version": "0.2.6",
     "description": "MCP Server for indexing Git repositories using AST parsing",
     "homepage": "https://github.com/jaccoklouwer/ast-indexer#readme",
     "repository": "https://github.com/jaccoklouwer/ast-indexer",
