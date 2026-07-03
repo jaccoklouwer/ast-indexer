@@ -70,7 +70,7 @@ jobs:
       - name: Ensure tag commit is reachable from main
         shell: bash
         run: |
-          git fetch origin main --depth=1
+          git fetch origin main:refs/remotes/origin/main
           git merge-base --is-ancestor "$GITHUB_SHA" origin/main
 
       - name: Install dependencies
