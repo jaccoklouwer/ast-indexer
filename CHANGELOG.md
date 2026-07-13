@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.2.8](https://github.com/jaccoklouwer/ast-indexer/compare/v0.2.6...v0.2.8) (2026-07-13)
+
+
+### Bug Fixes
+
+* fetch full main ref for release tag ancestry check ([6b3f9b7](https://github.com/jaccoklouwer/ast-indexer/commit/6b3f9b709faab3afdaa054f91e58aad497db5e9c))
+
 ### [0.2.7](https://github.com/jaccoklouwer/ast-indexer/compare/v0.2.6...v0.2.7) (2026-07-03)
 
 ### [0.2.6](https://github.com/jaccoklouwer/ast-indexer/compare/v0.2.5...v0.2.6) (2026-07-01)
