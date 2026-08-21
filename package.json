@@ -1,6 +1,6 @@
 {
   "name": "@klouwer94/ast-indexer",
-  "version": "0.2.9",
+  "version": "0.2.10",
   "description": "MCP Server for indexing Git repositories using AST parsing",
   "type": "module",
   "packageManager": "pnpm@11.18.0",
